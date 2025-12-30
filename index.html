@@ -7,8 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <!-- SheetJS para exportar a Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- Supabase Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -1862,26 +1860,6 @@
                 setTimeout(() => notif.remove(), 300);
             }, 3000);
         }
-        
-        // ===== PREPARACIÓN SUPABASE (NO BLOQUEA LA APP) =====
-        let supabaseClient = null;
-        
-        // Intentar conectar a Supabase en segundo plano
-        setTimeout(async function() {
-            try {
-                const SUPABASE_URL = 'https://jnomjvxzjqxkqqocdkjy.supabase.co';
-                const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impub21qdnh6anF4a3Fxb2Nka2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MjA1MTYsImV4cCI6MjA4MjM5NjUxNn0.ovDs0fo8r9EjWVA7GDBsMw1AYdiqaCP1f6whmsJFsQI';
-                
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                const { data, error } = await supabaseClient.from('recepciones').select('count').limit(1);
-                
-                if (!error) {
-                    console.log('✓ Supabase disponible');
-                }
-            } catch (error) {
-                console.log('✗ Supabase no disponible, usando localStorage');
-            }
-        }, 2000);
     </script>
 </body>
 </html>
