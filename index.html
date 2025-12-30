@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Recepción Canales - Hnos. Chico Galindo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>Cargando aplicación...</h1>
+    <p>Si ves este mensaje, hay un problema con el archivo. Contacta al administrador.</p>
+    
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://jnomjvxzjqxkqqocdkjy.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impub21qdnh6anF4a3Fxb2Nka2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MjA1MTYsImV4cCI6MjA4MjM5NjUxNn0.ovDs0fo8r9EjWVA7GDBsMw1AYdiqaCP1f6whmsJFsQI';
+        
+        // Prueba de conexión
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                const { data, error } = await sb.from('recepciones').select('count').limit(1);
+                
+                if (error) {
+                    document.body.innerHTML = '<h1>Error de conexión</h1><p>' + error.message + '</p>';
+                } else {
+                    document.body.innerHTML = '<h1>✓ Conexión exitosa</h1><p>Supabase funciona correctamente</p>';
+                }
+            } catch (err) {
+                document.body.innerHTML = '<h1>Error</h1><p>' + err.message + '</p>';
+            }
+        });
+    </script>
+</body>
+</html>
