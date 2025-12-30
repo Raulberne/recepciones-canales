@@ -5,33 +5,1912 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Recepción Canales - Hnos. Chico Galindo</title>
     <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS para exportar a Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1a1a1a;
+            --secondary: #c8102e;
+            --accent: #ff6b35;
+            --bg: #f5f5f0;
+            --card: #ffffff;
+            --text: #2d2d2d;
+            --text-light: #666666;
+            --border: #e0e0e0;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --shadow: rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            font-family: 'Red Hat Display', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--primary) 0%, #2d2d2d 100%);
+            color: white;
+            padding: 2.5rem 2rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 4px solid var(--secondary);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 40%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 107, 53, 0.1));
+            transform: rotate(-15deg);
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero p {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            opacity: 0.8;
+            position: relative;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: var(--card);
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px var(--shadow);
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 0.8rem 1.5rem;
+            background: transparent;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tab:hover {
+            border-color: var(--secondary);
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+            box-shadow: 0 4px 12px rgba(200, 16, 46, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-section {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 12px var(--shadow);
+            border-left: 4px solid var(--secondary);
+        }
+
+        .form-section h2 {
+            font-size: 1.4rem;
+            font-weight: 900;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-section h2::before {
+            content: '';
+            width: 6px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        input, textarea {
+            padding: 0.9rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: 'Red Hat Display', sans-serif;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .canales-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .canales-table thead {
+            background: var(--primary);
+            color: white;
+        }
+
+        .canales-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .canales-table td {
+            padding: 0.8rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .canales-table tbody tr {
+            background: white;
+            transition: background 0.2s ease;
+        }
+
+        .canales-table tbody tr:hover {
+            background: #fafafa;
+        }
+
+        .canales-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .canales-table input {
+            border: 1px solid var(--border);
+            padding: 0.6rem;
+        }
+
+        .canal-numero {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--secondary);
+            text-align: center;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #a00d25;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(200, 16, 46, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #2d2d2d;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e55a25;
+            transform: translateY(-2px);
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .resumen {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            border: 2px solid var(--border);
+        }
+
+        .resumen-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .resumen-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .resumen-item label {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-bottom: 0.3rem;
+        }
+
+        .resumen-item .value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .table-container {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px var(--shadow);
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .data-table thead {
+            background: var(--primary);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+            white-space: nowrap;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.3px;
+        }
+
+        .data-table td {
+            padding: 0.9rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8f8f8;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px var(--shadow);
+            border-left: 4px solid var(--secondary);
+        }
+
+        .stat-card h3 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-card .stat-unit {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            background: var(--success);
+        }
+
+        .notification.error {
+            background: var(--accent);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-light);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .btn-container {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        .action-btn {
+            padding: 0.5rem 0.8rem;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn.delete {
+            background: var(--accent);
+            color: white;
+        }
+
+        .action-btn.delete:hover {
+            background: #e55a25;
+        }
+        
+        .data-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #1976d2;
+        }
+        
+        .data-tag button {
+            background: #f44336;
+            color: white;
+            border: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .data-tag button:hover {
+            background: #d32f2f;
+            transform: scale(1.1);
+        }
+        .sync-status { position: fixed; top: 20px; right: 20px; padding: 0.6rem 1rem; background: white; border-radius: 20px; box-shadow: 0 4px 12px var(--shadow); font-size: 0.85rem; font-weight: 600; z-index: 1000; display: flex; align-items: center; gap: 0.5rem; }
+        .sync-status.online { color: #2ecc71; border: 2px solid #2ecc71; }
+        .sync-status.offline { color: #e74c3c; border: 2px solid #e74c3c; }
+        .sync-status .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    </style>
 </head>
 <body>
-    <h1>Cargando aplicación...</h1>
-    <p>Si ves este mensaje, hay un problema con el archivo. Contacta al administrador.</p>
-    
+    <div class="sync-status offline" id="syncStatus">
+        <span class="dot"></span>
+        <span id="statusText">Local</span>
+    </div>
+    <div class="hero">
+        <h1>🥩 Control Recepción de Canales</h1>
+        <p>Hnos. Chico Galindo · Trazabilidad y Control de Calidad</p>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('formulario')">📝 Nuevo Registro</button>
+            <button class="tab" onclick="switchTab('historial')">📊 Historial</button>
+            <button class="tab" onclick="switchTab('estadisticas')">📈 Estadísticas</button>
+            <button class="tab" onclick="switchTab('gestion')">⚙️ Gestión de Datos</button>
+        </div>
+
+        <!-- TAB: FORMULARIO -->
+        <div id="formulario" class="tab-content active">
+            <form id="recepcionForm">
+                <div class="form-section">
+                    <h2>Datos Generales</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Fecha de Descarga</label>
+                            <input type="date" id="fecha" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Hora de Descarga</label>
+                            <input type="time" id="hora" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Lote de Origen</label>
+                            <input type="text" id="loteOrigen" required placeholder="Lote del matadero">
+                        </div>
+                        <div class="form-group">
+                            <label>Lote en Recepción</label>
+                            <input type="text" id="lote" required placeholder="Lote interno">
+                        </div>
+                        <div class="form-group">
+                            <label>Matadero de Origen</label>
+                            <select id="matadero" required style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: 'Red Hat Display', sans-serif;">
+                                <option value="">-- Seleccionar matadero --</option>
+                            </select>
+                            <button type="button" onclick="abrirGestionDatos('mataderos')" style="margin-top: 0.5rem; padding: 0.5rem; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%;">+ Gestionar Mataderos</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Datos del Transporte</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Empresa Transportista</label>
+                            <select id="transportista" required style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: 'Red Hat Display', sans-serif;">
+                                <option value="">-- Seleccionar transportista --</option>
+                            </select>
+                            <button type="button" onclick="abrirGestionDatos('transportistas')" style="margin-top: 0.5rem; padding: 0.5rem; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%;">+ Gestionar Transportistas</button>
+                        </div>
+                        <div class="form-group">
+                            <label>Chofer</label>
+                            <select id="chofer" required style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: 'Red Hat Display', sans-serif;">
+                                <option value="">-- Seleccionar chofer --</option>
+                            </select>
+                            <button type="button" onclick="abrirGestionDatos('choferes')" style="margin-top: 0.5rem; padding: 0.5rem; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%;">+ Gestionar Choferes</button>
+                        </div>
+                        <div class="form-group">
+                            <label>Matrícula Cabeza</label>
+                            <select id="matriculaCabeza" required style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: 'Red Hat Display', sans-serif;">
+                                <option value="">-- Seleccionar matrícula --</option>
+                            </select>
+                            <button type="button" onclick="abrirGestionDatos('matriculasCabeza')" style="margin-top: 0.5rem; padding: 0.5rem; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%;">+ Gestionar Matrículas Cabeza</button>
+                        </div>
+                        <div class="form-group">
+                            <label>Matrícula Remolque</label>
+                            <select id="matriculaRemolque" required style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: 'Red Hat Display', sans-serif;">
+                                <option value="">-- Seleccionar matrícula --</option>
+                            </select>
+                            <button type="button" onclick="abrirGestionDatos('matriculasRemolque')" style="margin-top: 0.5rem; padding: 0.5rem; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%;">+ Gestionar Matrículas Remolque</button>
+                        </div>
+                        <div class="form-group">
+                            <label>Temperatura Camión (°C)</label>
+                            <input type="number" step="0.1" id="temperaturaCamion" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Datos de Peso - Matadero de Origen</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Peso Bruto Matadero (kg)</label>
+                            <input type="number" step="0.01" id="pesoBrutoMatadero" placeholder="Peso en origen" oninput="calcularPesoNetoMatadero()">
+                        </div>
+                        <div class="form-group">
+                            <label>Taras Matadero (kg)</label>
+                            <input type="number" step="0.01" id="tarasMatadero" placeholder="Taras en origen" oninput="calcularPesoNetoMatadero()">
+                        </div>
+                        <div class="form-group">
+                            <label>Peso Neto Matadero (kg)</label>
+                            <input type="number" step="0.01" id="pesoNetoMatadero" readonly style="background: #e8f5e9; font-weight: 700;" placeholder="Cálculo automático">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Datos de Peso - Recepción en Planta</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Peso Bruto Planta (kg)</label>
+                            <input type="number" step="0.01" id="pesoBruto" required oninput="calcularPesoNeto()">
+                        </div>
+                        <div class="form-group">
+                            <label>Taras Planta (kg)</label>
+                            <input type="number" step="0.01" id="taras" required oninput="calcularPesoNeto()">
+                        </div>
+                        <div class="form-group">
+                            <label>Peso Neto Planta (kg)</label>
+                            <input type="number" step="0.01" id="pesoNeto" readonly style="background: #f0f0f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Canales</label>
+                            <input type="number" id="numeroCanales" required oninput="calcularPesoNeto()">
+                        </div>
+                        <div class="form-group">
+                            <label>Peso Medio por Canal (kg)</label>
+                            <input type="number" step="0.01" id="pesoMedio" readonly style="background: #f0f0f0;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section" style="background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%); border-left: 6px solid #ff6b35;">
+                    <h2 style="color: #d63031;">⚖️ Control de Diferencia de Peso</h2>
+                    <div class="resumen" style="background: white;">
+                        <div class="resumen-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                            <div class="resumen-item">
+                                <label>Peso Neto Matadero</label>
+                                <div class="value" id="displayPesoMatadero" style="color: #0066cc;">0.00 kg</div>
+                            </div>
+                            <div class="resumen-item">
+                                <label>Peso Neto Planta</label>
+                                <div class="value" id="displayPesoPlanta" style="color: #0066cc;">0.00 kg</div>
+                            </div>
+                            <div class="resumen-item" style="border-left: 4px solid #ff6b35; background: #fff9e6;">
+                                <label style="color: #d63031; font-weight: 700;">⚠️ DIFERENCIA</label>
+                                <div class="value" id="displayDiferencia" style="font-size: 2rem; color: #2d2d2d;">0.00 kg</div>
+                                <div id="estadoDiferencia" style="margin-top: 0.5rem; font-weight: 700; font-size: 0.9rem;"></div>
+                            </div>
+                        </div>
+                        <div id="alertaDiferencia" style="margin-top: 1rem; padding: 1rem; border-radius: 8px; display: none; font-weight: 600;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Otras Materias Primas</h2>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea id="otrasMaterias" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Comprobación de Canales (15 Canales)</h2>
+                    <div style="overflow-x: auto;">
+                        <table class="canales-table">
+                            <thead>
+                                <tr>
+                                    <th>Nº Canal</th>
+                                    <th>Peso (kg)</th>
+                                    <th>Temperatura (°C)</th>
+                                    <th>Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="canalesBody">
+                                <!-- Se generará con JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="resumen">
+                        <h3 style="margin-bottom: 1rem; font-weight: 700;">Resumen de Comprobación</h3>
+                        <div class="resumen-grid">
+                            <div class="resumen-item">
+                                <label>Peso Total Comprobado</label>
+                                <div class="value" id="pesoTotalComprobado">0.00 kg</div>
+                            </div>
+                            <div class="resumen-item">
+                                <label>Peso Medio Comprobado</label>
+                                <div class="value" id="pesoMedioComprobado">0.00 kg</div>
+                            </div>
+                            <div class="resumen-item">
+                                <label>Temperatura Media</label>
+                                <div class="value" id="temperatureMedia">0.0 °C</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-container">
+                    <button type="submit" class="btn btn-primary">💾 Guardar Registro</button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">🗑️ Limpiar Formulario</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- TAB: HISTORIAL -->
+        <div id="historial" class="tab-content">
+            <!-- Filtros de Fecha para Historial -->
+            <div class="form-section" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-left: 4px solid #9c27b0; margin-bottom: 1.5rem;">
+                <h2 style="color: #6a1b9a;">🔍 Filtrar Historial</h2>
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="form-group">
+                        <label>Fecha Desde</label>
+                        <input type="date" id="fechaDesdeHistorial" onchange="cargarHistorial()" style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Hasta</label>
+                        <input type="date" id="fechaHastaHistorial" onchange="cargarHistorial()" style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px;">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="establecerFiltroRapidoHistorial('hoy')" style="flex: 1; padding: 0.7rem;">Hoy</button>
+                        <button class="btn btn-secondary" onclick="establecerFiltroRapidoHistorial('semana')" style="flex: 1; padding: 0.7rem;">Semana</button>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="establecerFiltroRapidoHistorial('mes')" style="flex: 1; padding: 0.7rem;">Mes</button>
+                        <button class="btn btn-danger" onclick="limpiarFiltrosHistorial()" style="flex: 1; padding: 0.7rem;">Todo</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.5rem; font-weight: 900;">Historial de Recepciones</h2>
+                        <p id="totalRegistrosHistorial" style="color: #666; margin-top: 0.3rem;"></p>
+                    </div>
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="btn btn-secondary" onclick="exportarExcel()">📥 Exportar a Excel</button>
+                        <button class="btn btn-danger" onclick="confirmarBorrarTodo()">🗑️ Borrar Todo</button>
+                    </div>
+                </div>
+                <div id="historialContainer"></div>
+            </div>
+        </div>
+
+        <!-- TAB: ESTADÍSTICAS -->
+        <div id="estadisticas" class="tab-content">
+            <!-- Filtros de Fecha -->
+            <div class="form-section" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-left: 4px solid #2196f3;">
+                <h2 style="color: #1565c0;">📅 Filtros de Fecha</h2>
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="form-group">
+                        <label>Fecha Desde</label>
+                        <input type="date" id="fechaDesde" onchange="aplicarFiltrosFecha()" style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Hasta</label>
+                        <input type="date" id="fechaHasta" onchange="aplicarFiltrosFecha()" style="padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px;">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="establecerFiltroRapido('hoy')" style="flex: 1; padding: 0.7rem;">Hoy</button>
+                        <button class="btn btn-secondary" onclick="establecerFiltroRapido('semana')" style="flex: 1; padding: 0.7rem;">Esta Semana</button>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="establecerFiltroRapido('mes')" style="flex: 1; padding: 0.7rem;">Este Mes</button>
+                        <button class="btn btn-danger" onclick="limpiarFiltrosFecha()" style="flex: 1; padding: 0.7rem;">Limpiar</button>
+                    </div>
+                </div>
+                <div id="infoFiltro" style="margin-top: 1rem; padding: 0.8rem; background: white; border-radius: 6px; font-weight: 600; color: #1565c0; display: none;">
+                    📊 Mostrando datos filtrados
+                </div>
+            </div>
+            
+            <div class="stats-grid" id="statsGrid"></div>
+            <div class="table-container">
+                <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; font-weight: 900;">Análisis Detallado</h2>
+                <div id="analisisDetallado"></div>
+            </div>
+            
+            <!-- Sección de Configuración de Seguridad -->
+            <div class="table-container" style="margin-top: 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                <h2 style="margin-bottom: 1rem; font-size: 1.3rem; font-weight: 900; color: #d63031;">🔒 Configuración de Seguridad</h2>
+                <div style="padding: 1.5rem; background: white; border-radius: 8px; border-left: 4px solid #d63031;">
+                    <p style="margin-bottom: 1rem; color: #666;"><strong>Contraseña actual:</strong> La contraseña protege la eliminación de registros.</p>
+                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <input type="password" id="nuevaPassword" placeholder="Nueva contraseña" style="padding: 0.8rem; border: 2px solid #ddd; border-radius: 6px; flex: 1; min-width: 200px;">
+                        <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" style="padding: 0.8rem; border: 2px solid #ddd; border-radius: 6px; flex: 1; min-width: 200px;">
+                        <button class="btn btn-secondary" onclick="cambiarPassword()" style="white-space: nowrap;">Cambiar Contraseña</button>
+                    </div>
+                    <p style="margin-top: 1rem; font-size: 0.85rem; color: #999;">
+                        <strong>Nota:</strong> La contraseña predeterminada es <code style="background: #f0f0f0; padding: 0.2rem 0.4rem; border-radius: 3px;">admin2024</code>. 
+                        Se recomienda cambiarla para mayor seguridad.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB: GESTIÓN DE DATOS -->
+        <div id="gestion" class="tab-content">
+            <div class="table-container">
+                <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; font-weight: 900;">⚙️ Gestión de Datos Maestros</h2>
+                <p style="margin-bottom: 2rem; color: #666;">Administra los datos que aparecerán en los desplegables del formulario de registro.</p>
+                
+                <!-- Mataderos -->
+                <div class="form-section">
+                    <h2>🏭 Mataderos</h2>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <input type="text" id="nuevoMatadero" placeholder="Nombre del matadero" style="flex: 1; padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px;">
+                        <button class="btn btn-primary" onclick="agregarDato('mataderos', 'nuevoMatadero')">Agregar</button>
+                    </div>
+                    <div id="listaMataderos" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                </div>
+                
+                <!-- Transportistas -->
+                <div class="form-section">
+                    <h2>🚛 Empresas Transportistas</h2>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <input type="text" id="nuevoTransportista" placeholder="Nombre de la empresa" style="flex: 1; padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px;">
+                        <button class="btn btn-primary" onclick="agregarDato('transportistas', 'nuevoTransportista')">Agregar</button>
+                    </div>
+                    <div id="listaTransportistas" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                </div>
+                
+                <!-- Choferes -->
+                <div class="form-section">
+                    <h2>👤 Choferes</h2>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <input type="text" id="nuevoChofer" placeholder="Nombre del chofer" style="flex: 1; padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px;">
+                        <button class="btn btn-primary" onclick="agregarDato('choferes', 'nuevoChofer')">Agregar</button>
+                    </div>
+                    <div id="listaChoferes" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                </div>
+                
+                <!-- Matrículas Cabeza -->
+                <div class="form-section">
+                    <h2>🚚 Matrículas de Cabeza</h2>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <input type="text" id="nuevaMatriculaCabeza" placeholder="Matrícula (ej: 1234ABC)" style="flex: 1; padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px; text-transform: uppercase;">
+                        <button class="btn btn-primary" onclick="agregarDato('matriculasCabeza', 'nuevaMatriculaCabeza')">Agregar</button>
+                    </div>
+                    <div id="listaMatriculasCabeza" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                </div>
+                
+                <!-- Matrículas Remolque -->
+                <div class="form-section">
+                    <h2>🚛 Matrículas de Remolque</h2>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <input type="text" id="nuevaMatriculaRemolque" placeholder="Matrícula (ej: R-5678XYZ)" style="flex: 1; padding: 0.9rem; border: 2px solid var(--border); border-radius: 8px; text-transform: uppercase;">
+                        <button class="btn btn-primary" onclick="agregarDato('matriculasRemolque', 'nuevaMatriculaRemolque')">Agregar</button>
+                    </div>
+                    <div id="listaMatriculasRemolque" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Configuración de Supabase
+
+        // ===== CONFIGURACIÓN DE SUPABASE =====
         const SUPABASE_URL = 'https://jnomjvxzjqxkqqocdkjy.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impub21qdnh6anF4a3Fxb2Nka2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MjA1MTYsImV4cCI6MjA4MjM5NjUxNn0.ovDs0fo8r9EjWVA7GDBsMw1AYdiqaCP1f6whmsJFsQI';
         
-        // Prueba de conexión
-        document.addEventListener('DOMContentLoaded', async function() {
+        let supabaseClient = null;
+        let dbActiva = false;
+        
+        // Inicializar Supabase al cargar
+        async function inicializarSupabase() {
             try {
-                const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                const { data, error } = await sb.from('recepciones').select('count').limit(1);
-                
-                if (error) {
-                    document.body.innerHTML = '<h1>Error de conexión</h1><p>' + error.message + '</p>';
-                } else {
-                    document.body.innerHTML = '<h1>✓ Conexión exitosa</h1><p>Supabase funciona correctamente</p>';
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                const { data, error } = await supabaseClient.from('recepciones').select('count').limit(1);
+                if (!error) {
+                    dbActiva = true;
+                    actualizarEstadoConexion(true);
+                    console.log('✓ Supabase conectado');
+                    return true;
                 }
-            } catch (err) {
-                document.body.innerHTML = '<h1>Error</h1><p>' + err.message + '</p>';
+            } catch (error) {
+                console.log('✗ Supabase no disponible, usando localStorage');
             }
+            actualizarEstadoConexion(false);
+            return false;
+        }
+        
+        function actualizarEstadoConexion(conectado) {
+            const status = document.getElementById('syncStatus');
+            const text = document.getElementById('statusText');
+            if (status && text) {
+                if (conectado) {
+                    status.className = 'sync-status online';
+                    text.textContent = 'Cloud';
+                } else {
+                    status.className = 'sync-status offline';
+                    text.textContent = 'Local';
+                }
+            }
+        }
+        
+        // =========================================
+        // CONFIGURACIÓN DE SEGURIDAD
+        // =========================================
+        // Contraseña predeterminada: admin2024
+        // Para cambiar la contraseña, modifica la variable 'passwordCorrecta' 
+        // en las funciones eliminarRegistro() y confirmarBorrarTodo()
+        // =========================================
+        
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            inicializarSupabase();
+            generarFilasCanales();
+            cargarHistorial();
+            actualizarEstadisticas();
+            cargarDatosMaestros();
+            cargarSelectores();
+            
+            // Establecer fecha y hora actuales
+            const ahora = new Date();
+            document.getElementById('fecha').valueAsDate = ahora;
+            document.getElementById('hora').value = ahora.toTimeString().slice(0, 5);
         });
+        
+        // Cargar datos maestros en los selectores
+        function cargarSelectores() {
+            const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
+            
+            tipos.forEach(tipo => {
+                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                let selectId = '';
+                
+                switch(tipo) {
+                    case 'mataderos': selectId = 'matadero'; break;
+                    case 'transportistas': selectId = 'transportista'; break;
+                    case 'choferes': selectId = 'chofer'; break;
+                    case 'matriculasCabeza': selectId = 'matriculaCabeza'; break;
+                    case 'matriculasRemolque': selectId = 'matriculaRemolque'; break;
+                }
+                
+                const select = document.getElementById(selectId);
+                const valorActual = select.value;
+                
+                // Limpiar opciones excepto la primera
+                select.innerHTML = '<option value="">-- Seleccionar --</option>';
+                
+                // Agregar opciones
+                datos.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    select.appendChild(option);
+                });
+                
+                // Restaurar valor si existía
+                if (valorActual) {
+                    select.value = valorActual;
+                }
+            });
+        }
+        
+        // Cargar datos maestros en listas
+        function cargarDatosMaestros() {
+            const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
+            
+            tipos.forEach(tipo => {
+                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                let listaId = '';
+                
+                switch(tipo) {
+                    case 'mataderos': listaId = 'listaMataderos'; break;
+                    case 'transportistas': listaId = 'listaTransportistas'; break;
+                    case 'choferes': listaId = 'listaChoferes'; break;
+                    case 'matriculasCabeza': listaId = 'listaMatriculasCabeza'; break;
+                    case 'matriculasRemolque': listaId = 'listaMatriculasRemolque'; break;
+                }
+                
+                const lista = document.getElementById(listaId);
+                lista.innerHTML = '';
+                
+                if (datos.length === 0) {
+                    lista.innerHTML = '<p style="color: #999; font-style: italic;">No hay datos registrados</p>';
+                    return;
+                }
+                
+                datos.forEach(item => {
+                    const tag = document.createElement('div');
+                    tag.className = 'data-tag';
+                    tag.innerHTML = `
+                        <span>${item}</span>
+                        <button onclick="eliminarDato('${tipo}', '${item.replace(/'/g, "\\'")}')">×</button>
+                    `;
+                    lista.appendChild(tag);
+                });
+            });
+        }
+        
+        // Agregar dato maestro
+        function agregarDato(tipo, inputId) {
+            const input = document.getElementById(inputId);
+            const valor = input.value.trim().toUpperCase();
+            
+            if (!valor) {
+                mostrarNotificacion('Por favor ingresa un valor', 'error');
+                return;
+            }
+            
+            let datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            
+            if (datos.includes(valor)) {
+                mostrarNotificacion('Este dato ya existe', 'error');
+                return;
+            }
+            
+            datos.push(valor);
+            datos.sort();
+            localStorage.setItem(tipo, JSON.stringify(datos));
+            
+            input.value = '';
+            cargarDatosMaestros();
+            cargarSelectores();
+            mostrarNotificacion('Dato agregado correctamente', 'success');
+        }
+        
+        // Eliminar dato maestro
+        function eliminarDato(tipo, valor) {
+            if (!confirm(`¿Eliminar "${valor}"?`)) return;
+            
+            let datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            datos = datos.filter(d => d !== valor);
+            localStorage.setItem(tipo, JSON.stringify(datos));
+            
+            cargarDatosMaestros();
+            cargarSelectores();
+            mostrarNotificacion('Dato eliminado', 'success');
+        }
+        
+        // Abrir gestión de datos (función auxiliar)
+        function abrirGestionDatos(tipo) {
+            switchTab('gestion');
+            // Scroll suave hacia la sección correspondiente
+            setTimeout(() => {
+                const secciones = {
+                    'mataderos': 'listaMataderos',
+                    'transportistas': 'listaTransportistas',
+                    'choferes': 'listaChoferes',
+                    'matriculasCabeza': 'listaMatriculasCabeza',
+                    'matriculasRemolque': 'listaMatriculasRemolque'
+                };
+                
+                const elemento = document.getElementById(secciones[tipo]);
+                if (elemento) {
+                    elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+
+        // Generar filas de canales
+        function generarFilasCanales() {
+            const tbody = document.getElementById('canalesBody');
+            for (let i = 1; i <= 15; i++) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="canal-numero">${i}</td>
+                    <td><input type="number" step="0.01" class="canal-peso" data-canal="${i}" oninput="calcularResumenCanales()"></td>
+                    <td><input type="number" step="0.1" class="canal-temp" data-canal="${i}" oninput="calcularResumenCanales()"></td>
+                    <td><input type="text" class="canal-obs" data-canal="${i}"></td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // Calcular peso neto del matadero
+        function calcularPesoNetoMatadero() {
+            const pesoBruto = parseFloat(document.getElementById('pesoBrutoMatadero').value) || 0;
+            const taras = parseFloat(document.getElementById('tarasMatadero').value) || 0;
+            const pesoNeto = pesoBruto - taras;
+            
+            document.getElementById('pesoNetoMatadero').value = pesoNeto.toFixed(2);
+            
+            // Actualizar el cálculo de diferencia
+            calcularPesoNeto();
+        }
+        
+        // Calcular peso neto y medio
+        function calcularPesoNeto() {
+            const pesoBruto = parseFloat(document.getElementById('pesoBruto').value) || 0;
+            const taras = parseFloat(document.getElementById('taras').value) || 0;
+            const numeroCanales = parseFloat(document.getElementById('numeroCanales').value) || 0;
+            
+            const pesoNeto = pesoBruto - taras;
+            document.getElementById('pesoNeto').value = pesoNeto.toFixed(2);
+            
+            if (numeroCanales > 0) {
+                const pesoMedio = pesoNeto / numeroCanales;
+                document.getElementById('pesoMedio').value = pesoMedio.toFixed(2);
+            } else {
+                document.getElementById('pesoMedio').value = '0.00';
+            }
+            
+            // Actualizar displays visuales
+            document.getElementById('displayPesoPlanta').textContent = pesoNeto.toFixed(2) + ' kg';
+            
+            // Calcular diferencia con matadero
+            const pesoNetoMatadero = parseFloat(document.getElementById('pesoNetoMatadero').value) || 0;
+            document.getElementById('displayPesoMatadero').textContent = pesoNetoMatadero.toFixed(2) + ' kg';
+            
+            if (pesoNetoMatadero > 0 && pesoNeto > 0) {
+                const diferencia = pesoNeto - pesoNetoMatadero;
+                const porcentajeDif = (Math.abs(diferencia) / pesoNetoMatadero * 100).toFixed(2);
+                
+                // Actualizar display de diferencia
+                const displayDif = document.getElementById('displayDiferencia');
+                displayDif.textContent = (diferencia >= 0 ? '+' : '') + diferencia.toFixed(2) + ' kg';
+                
+                const estadoDif = document.getElementById('estadoDiferencia');
+                const alertaDif = document.getElementById('alertaDiferencia');
+                
+                // Categorizar la diferencia
+                if (Math.abs(diferencia) <= 5) {
+                    // Diferencia muy pequeña - ACEPTABLE
+                    displayDif.style.color = '#28a745';
+                    estadoDif.textContent = '✓ ACEPTABLE';
+                    estadoDif.style.color = '#28a745';
+                    alertaDif.style.display = 'none';
+                } else if (Math.abs(diferencia) <= 10) {
+                    // Diferencia moderada - ADVERTENCIA
+                    displayDif.style.color = '#ffc107';
+                    estadoDif.textContent = '⚠ REVISAR';
+                    estadoDif.style.color = '#ffc107';
+                    alertaDif.style.display = 'block';
+                    alertaDif.style.background = '#fff3cd';
+                    alertaDif.style.color = '#856404';
+                    alertaDif.style.border = '2px solid #ffc107';
+                    alertaDif.innerHTML = `<strong>⚠️ Advertencia:</strong> Diferencia de ${Math.abs(diferencia).toFixed(2)} kg (${porcentajeDif}%). Se recomienda verificar.`;
+                } else {
+                    // Diferencia grande - ALERTA
+                    displayDif.style.color = '#dc3545';
+                    estadoDif.textContent = '❌ ALERTA';
+                    estadoDif.style.color = '#dc3545';
+                    alertaDif.style.display = 'block';
+                    alertaDif.style.background = '#f8d7da';
+                    alertaDif.style.color = '#721c24';
+                    alertaDif.style.border = '2px solid #dc3545';
+                    alertaDif.innerHTML = `<strong>❌ ALERTA:</strong> Diferencia significativa de ${Math.abs(diferencia).toFixed(2)} kg (${porcentajeDif}%). Requiere investigación inmediata.`;
+                }
+            } else {
+                // Sin datos de matadero
+                document.getElementById('displayDiferencia').textContent = '0.00 kg';
+                document.getElementById('displayDiferencia').style.color = '#6c757d';
+                document.getElementById('estadoDiferencia').textContent = '';
+                document.getElementById('alertaDiferencia').style.display = 'none';
+            }
+        }
+
+        // Calcular resumen de canales
+        function calcularResumenCanales() {
+            const pesos = document.querySelectorAll('.canal-peso');
+            const temps = document.querySelectorAll('.canal-temp');
+            
+            let totalPeso = 0;
+            let countPeso = 0;
+            let totalTemp = 0;
+            let countTemp = 0;
+            
+            pesos.forEach(input => {
+                const val = parseFloat(input.value);
+                if (!isNaN(val) && val > 0) {
+                    totalPeso += val;
+                    countPeso++;
+                }
+            });
+            
+            temps.forEach(input => {
+                const val = parseFloat(input.value);
+                if (!isNaN(val)) {
+                    totalTemp += val;
+                    countTemp++;
+                }
+            });
+            
+            document.getElementById('pesoTotalComprobado').textContent = totalPeso.toFixed(2) + ' kg';
+            document.getElementById('pesoMedioComprobado').textContent = (countPeso > 0 ? (totalPeso / countPeso).toFixed(2) : '0.00') + ' kg';
+            document.getElementById('temperatureMedia').textContent = (countTemp > 0 ? (totalTemp / countTemp).toFixed(1) : '0.0') + ' °C';
+        }
+
+        // Guardar registro
+        document.getElementById('recepcionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Recopilar datos del formulario
+            const pesoNetoMatadero = parseFloat(document.getElementById('pesoNetoMatadero').value) || null;
+            const pesoNetoPlanta = parseFloat(document.getElementById('pesoNeto').value);
+            const diferencia = pesoNetoMatadero ? (pesoNetoPlanta - pesoNetoMatadero) : 0;
+            
+            const registro = {
+                id: Date.now(),
+                fecha: document.getElementById('fecha').value,
+                hora: document.getElementById('hora').value,
+                loteOrigen: document.getElementById('loteOrigen').value,
+                lote: document.getElementById('lote').value,
+                matadero: document.getElementById('matadero').value,
+                transportista: document.getElementById('transportista').value,
+                chofer: document.getElementById('chofer').value,
+                matriculaCabeza: document.getElementById('matriculaCabeza').value,
+                matriculaRemolque: document.getElementById('matriculaRemolque').value,
+                temperaturaCamion: parseFloat(document.getElementById('temperaturaCamion').value),
+                pesoBrutoMatadero: parseFloat(document.getElementById('pesoBrutoMatadero').value) || null,
+                tarasMatadero: parseFloat(document.getElementById('tarasMatadero').value) || null,
+                pesoNetoMatadero: pesoNetoMatadero,
+                pesoBruto: parseFloat(document.getElementById('pesoBruto').value),
+                taras: parseFloat(document.getElementById('taras').value),
+                pesoNeto: pesoNetoPlanta,
+                diferenciaPeso: diferencia,
+                numeroCanales: parseInt(document.getElementById('numeroCanales').value),
+                pesoMedio: parseFloat(document.getElementById('pesoMedio').value),
+                otrasMaterias: document.getElementById('otrasMaterias').value,
+                canales: []
+            };
+            
+            // Recopilar datos de canales
+            for (let i = 1; i <= 15; i++) {
+                const peso = document.querySelector(`.canal-peso[data-canal="${i}"]`).value;
+                const temp = document.querySelector(`.canal-temp[data-canal="${i}"]`).value;
+                const obs = document.querySelector(`.canal-obs[data-canal="${i}"]`).value;
+                
+                registro.canales.push({
+                    numero: i,
+                    peso: peso ? parseFloat(peso) : null,
+                    temperatura: temp ? parseFloat(temp) : null,
+                    observaciones: obs
+                });
+            }
+            
+            // Guardar en localStorage
+            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            registros.push(registro);
+            localStorage.setItem('registrosCanales', JSON.stringify(registros));
+            
+            // Mostrar notificación
+            mostrarNotificacion('✓ Registro guardado exitosamente', 'success');
+            
+            // Limpiar formulario
+            limpiarFormulario();
+            
+            // Actualizar historial y estadísticas
+            cargarHistorial();
+            actualizarEstadisticas();
+        });
+
+        // Limpiar formulario
+        function limpiarFormulario() {
+            document.getElementById('recepcionForm').reset();
+            
+            // Restablecer fecha y hora actuales
+            const ahora = new Date();
+            document.getElementById('fecha').valueAsDate = ahora;
+            document.getElementById('hora').value = ahora.toTimeString().slice(0, 5);
+            
+            // Limpiar resumen de canales
+            document.getElementById('pesoTotalComprobado').textContent = '0.00 kg';
+            document.getElementById('pesoMedioComprobado').textContent = '0.00 kg';
+            document.getElementById('temperatureMedia').textContent = '0.0 °C';
+            
+            // Limpiar displays de diferencia
+            document.getElementById('displayPesoMatadero').textContent = '0.00 kg';
+            document.getElementById('displayPesoPlanta').textContent = '0.00 kg';
+            document.getElementById('displayDiferencia').textContent = '0.00 kg';
+            document.getElementById('displayDiferencia').style.color = '#6c757d';
+            document.getElementById('estadoDiferencia').textContent = '';
+            document.getElementById('alertaDiferencia').style.display = 'none';
+        }
+
+        // Cargar historial
+        function cargarHistorial() {
+            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            const container = document.getElementById('historialContainer');
+            
+            // Aplicar filtros de fecha si existen
+            const fechaDesde = document.getElementById('fechaDesdeHistorial')?.value;
+            const fechaHasta = document.getElementById('fechaHastaHistorial')?.value;
+            const totalRegistros = registros.length;
+            
+            if (fechaDesde || fechaHasta) {
+                registros = filtrarPorFecha(registros, fechaDesde, fechaHasta);
+            }
+            
+            // Actualizar contador
+            const totalElement = document.getElementById('totalRegistrosHistorial');
+            if (totalElement) {
+                if (fechaDesde || fechaHasta) {
+                    totalElement.textContent = `Mostrando ${registros.length} de ${totalRegistros} registros`;
+                    totalElement.style.color = '#2196f3';
+                    totalElement.style.fontWeight = '600';
+                } else {
+                    totalElement.textContent = `Total: ${totalRegistros} registros`;
+                    totalElement.style.color = '#666';
+                    totalElement.style.fontWeight = 'normal';
+                }
+            }
+            
+            if (registros.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
+                        <h3>No hay registros</h3>
+                        <p>${fechaDesde || fechaHasta ? 'No hay registros en el período seleccionado' : 'Comienza agregando tu primera recepción'}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Lote Origen</th>
+                            <th>Lote Recepción</th>
+                            <th>Matadero</th>
+                            <th>Nº Canales</th>
+                            <th>Peso Neto Matadero (kg)</th>
+                            <th>Peso Neto Planta (kg)</th>
+                            <th>Diferencia (kg)</th>
+                            <th>Peso Medio (kg)</th>
+                            <th>Temp Camión (°C)</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            registros.reverse().forEach(reg => {
+                const pesoMatadero = reg.pesoNetoMatadero || 0;
+                const diferencia = reg.diferenciaPeso || 0;
+                const colorDiferencia = Math.abs(diferencia) > 10 ? '#dc3545' : '#28a745';
+                
+                html += `
+                    <tr>
+                        <td>${reg.fecha}</td>
+                        <td>${reg.hora}</td>
+                        <td><strong>${reg.loteOrigen || reg.lote}</strong></td>
+                        <td><strong>${reg.lote}</strong></td>
+                        <td>${reg.matadero}</td>
+                        <td style="text-align: center;">${reg.numeroCanales}</td>
+                        <td style="text-align: right;">${pesoMatadero > 0 ? pesoMatadero.toFixed(2) : '-'}</td>
+                        <td style="text-align: right;"><strong>${reg.pesoNeto.toFixed(2)}</strong></td>
+                        <td style="text-align: right; color: ${colorDiferencia}; font-weight: 700;">${diferencia !== 0 ? diferencia.toFixed(2) : '-'}</td>
+                        <td style="text-align: right;">${reg.pesoMedio.toFixed(2)}</td>
+                        <td style="text-align: center;">${reg.temperaturaCamion.toFixed(1)}</td>
+                        <td>
+                            <button class="action-btn delete" onclick="eliminarRegistro(${reg.id})">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        // Establecer filtro rápido para historial
+        function establecerFiltroRapidoHistorial(tipo) {
+            const hoy = new Date();
+            let desde, hasta;
+            
+            switch(tipo) {
+                case 'hoy':
+                    desde = hasta = hoy.toISOString().split('T')[0];
+                    break;
+                    
+                case 'semana':
+                    const primerDia = hoy.getDate() - hoy.getDay() + 1;
+                    desde = new Date(hoy.setDate(primerDia)).toISOString().split('T')[0];
+                    hasta = new Date().toISOString().split('T')[0];
+                    break;
+                    
+                case 'mes':
+                    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+                    hasta = new Date().toISOString().split('T')[0];
+                    break;
+            }
+            
+            document.getElementById('fechaDesdeHistorial').value = desde;
+            document.getElementById('fechaHastaHistorial').value = hasta;
+            cargarHistorial();
+        }
+        
+        // Limpiar filtros de historial
+        function limpiarFiltrosHistorial() {
+            document.getElementById('fechaDesdeHistorial').value = '';
+            document.getElementById('fechaHastaHistorial').value = '';
+            cargarHistorial();
+        }
+
+        // Obtener contraseña actual
+        function obtenerPassword() {
+            return localStorage.getItem('passwordAdmin') || 'admin2024';
+        }
+        
+        // Cambiar contraseña
+        function cambiarPassword() {
+            const passwordActual = prompt('🔒 Introduce la contraseña actual:');
+            
+            if (passwordActual === null) return;
+            
+            if (passwordActual !== obtenerPassword()) {
+                mostrarNotificacion('❌ Contraseña actual incorrecta', 'error');
+                return;
+            }
+            
+            const nuevaPass = document.getElementById('nuevaPassword').value;
+            const confirmarPass = document.getElementById('confirmarPassword').value;
+            
+            if (!nuevaPass || !confirmarPass) {
+                mostrarNotificacion('❌ Completa todos los campos', 'error');
+                return;
+            }
+            
+            if (nuevaPass !== confirmarPass) {
+                mostrarNotificacion('❌ Las contraseñas no coinciden', 'error');
+                return;
+            }
+            
+            if (nuevaPass.length < 6) {
+                mostrarNotificacion('❌ La contraseña debe tener al menos 6 caracteres', 'error');
+                return;
+            }
+            
+            localStorage.setItem('passwordAdmin', nuevaPass);
+            document.getElementById('nuevaPassword').value = '';
+            document.getElementById('confirmarPassword').value = '';
+            
+            mostrarNotificacion('✓ Contraseña cambiada correctamente', 'success');
+        }
+        
+        // Eliminar registro
+        function eliminarRegistro(id) {
+            const password = prompt('🔒 Introduce la contraseña para eliminar este registro:');
+            
+            if (password === null) {
+                // Usuario canceló
+                return;
+            }
+            
+            if (password !== obtenerPassword()) {
+                mostrarNotificacion('❌ Contraseña incorrecta', 'error');
+                return;
+            }
+            
+            if (!confirm('¿Estás seguro de eliminar este registro?')) return;
+            
+            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            registros = registros.filter(r => r.id !== id);
+            localStorage.setItem('registrosCanales', JSON.stringify(registros));
+            
+            mostrarNotificacion('Registro eliminado correctamente', 'success');
+            cargarHistorial();
+            actualizarEstadisticas();
+        }
+
+        // Confirmar borrar todo
+        function confirmarBorrarTodo() {
+            const password = prompt('🔒 Introduce la contraseña de administrador para BORRAR TODOS LOS REGISTROS:');
+            
+            if (password === null) {
+                // Usuario canceló
+                return;
+            }
+            
+            if (password !== obtenerPassword()) {
+                mostrarNotificacion('❌ Contraseña incorrecta', 'error');
+                return;
+            }
+            
+            if (!confirm('⚠️ ¿ESTÁS SEGURO? Esto borrará TODOS los registros permanentemente.')) return;
+            if (!confirm('Esta acción NO SE PUEDE DESHACER. ¿Continuar?')) return;
+            
+            localStorage.removeItem('registrosCanales');
+            mostrarNotificacion('Todos los registros han sido eliminados', 'success');
+            cargarHistorial();
+            actualizarEstadisticas();
+        }
+
+        // Actualizar estadísticas
+        function actualizarEstadisticas() {
+            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            
+            // Aplicar filtros de fecha si existen
+            const fechaDesde = document.getElementById('fechaDesde')?.value;
+            const fechaHasta = document.getElementById('fechaHasta')?.value;
+            
+            if (fechaDesde || fechaHasta) {
+                registros = filtrarPorFecha(registros, fechaDesde, fechaHasta);
+                document.getElementById('infoFiltro').style.display = 'block';
+                document.getElementById('infoFiltro').textContent = `📊 Mostrando ${registros.length} registros filtrados`;
+            } else {
+                if (document.getElementById('infoFiltro')) {
+                    document.getElementById('infoFiltro').style.display = 'none';
+                }
+            }
+            
+            const statsGrid = document.getElementById('statsGrid');
+            const analisisDetallado = document.getElementById('analisisDetallado');
+            
+            if (registros.length === 0) {
+                statsGrid.innerHTML = '<div class="empty-state"><p>No hay datos para mostrar estadísticas</p></div>';
+                analisisDetallado.innerHTML = '';
+                return;
+            }
+            
+            // Calcular estadísticas
+            const totalRecepciones = registros.length;
+            const totalPesoNeto = registros.reduce((sum, r) => sum + r.pesoNeto, 0);
+            const totalCanales = registros.reduce((sum, r) => sum + r.numeroCanales, 0);
+            const pesoMedioGeneral = totalPesoNeto / totalCanales;
+            const tempMediaCamion = registros.reduce((sum, r) => sum + r.temperaturaCamion, 0) / registros.length;
+            
+            // Calcular diferencias de peso
+            const registrosConDiferencia = registros.filter(r => r.diferenciaPeso !== undefined && r.diferenciaPeso !== 0);
+            const diferenciaTotalPeso = registrosConDiferencia.reduce((sum, r) => sum + (r.diferenciaPeso || 0), 0);
+            const diferenciaMediaPeso = registrosConDiferencia.length > 0 ? diferenciaTotalPeso / registrosConDiferencia.length : 0;
+            
+            // Mostrar estadísticas
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <h3>Total Recepciones</h3>
+                    <div class="stat-value">${totalRecepciones}</div>
+                    <div class="stat-unit">registros</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Peso Total Recibido</h3>
+                    <div class="stat-value">${totalPesoNeto.toFixed(0)}</div>
+                    <div class="stat-unit">kg</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Canales</h3>
+                    <div class="stat-value">${totalCanales}</div>
+                    <div class="stat-unit">unidades</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Peso Medio por Canal</h3>
+                    <div class="stat-value">${pesoMedioGeneral.toFixed(2)}</div>
+                    <div class="stat-unit">kg/canal</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Diferencia Media de Peso</h3>
+                    <div class="stat-value" style="color: ${Math.abs(diferenciaMediaPeso) > 10 ? '#dc3545' : '#28a745'}">${diferenciaMediaPeso.toFixed(2)}</div>
+                    <div class="stat-unit">kg (Matadero vs Planta)</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Temp. Media Transporte</h3>
+                    <div class="stat-value">${tempMediaCamion.toFixed(1)}</div>
+                    <div class="stat-unit">°C</div>
+                </div>
+            `;
+            
+            // Análisis por matadero
+            const porMatadero = {};
+            registros.forEach(r => {
+                if (!porMatadero[r.matadero]) {
+                    porMatadero[r.matadero] = { count: 0, peso: 0, canales: 0 };
+                }
+                porMatadero[r.matadero].count++;
+                porMatadero[r.matadero].peso += r.pesoNeto;
+                porMatadero[r.matadero].canales += r.numeroCanales;
+            });
+            
+            let htmlAnalisis = '<h3 style="margin-bottom: 1rem; font-weight: 700;">Análisis por Matadero</h3>';
+            htmlAnalisis += '<table class="data-table"><thead><tr><th>Matadero</th><th>Recepciones</th><th>Peso Total (kg)</th><th>Canales</th><th>Peso Medio/Canal (kg)</th></tr></thead><tbody>';
+            
+            Object.keys(porMatadero).forEach(matadero => {
+                const data = porMatadero[matadero];
+                htmlAnalisis += `
+                    <tr>
+                        <td><strong>${matadero}</strong></td>
+                        <td>${data.count}</td>
+                        <td style="text-align: right;">${data.peso.toFixed(2)}</td>
+                        <td>${data.canales}</td>
+                        <td style="text-align: right;">${(data.peso / data.canales).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            
+            htmlAnalisis += '</tbody></table>';
+            analisisDetallado.innerHTML = htmlAnalisis;
+        }
+        
+        // Filtrar registros por fecha
+        function filtrarPorFecha(registros, fechaDesde, fechaHasta) {
+            return registros.filter(reg => {
+                const fechaReg = new Date(reg.fecha);
+                
+                if (fechaDesde && fechaHasta) {
+                    const desde = new Date(fechaDesde);
+                    const hasta = new Date(fechaHasta);
+                    return fechaReg >= desde && fechaReg <= hasta;
+                } else if (fechaDesde) {
+                    const desde = new Date(fechaDesde);
+                    return fechaReg >= desde;
+                } else if (fechaHasta) {
+                    const hasta = new Date(fechaHasta);
+                    return fechaReg <= hasta;
+                }
+                
+                return true;
+            });
+        }
+        
+        // Aplicar filtros de fecha
+        function aplicarFiltrosFecha() {
+            actualizarEstadisticas();
+        }
+        
+        // Establecer filtro rápido
+        function establecerFiltroRapido(tipo) {
+            const hoy = new Date();
+            let desde, hasta;
+            
+            switch(tipo) {
+                case 'hoy':
+                    desde = hasta = hoy.toISOString().split('T')[0];
+                    break;
+                    
+                case 'semana':
+                    // Inicio de semana (lunes)
+                    const primerDia = hoy.getDate() - hoy.getDay() + 1;
+                    desde = new Date(hoy.setDate(primerDia)).toISOString().split('T')[0];
+                    hasta = new Date().toISOString().split('T')[0];
+                    break;
+                    
+                case 'mes':
+                    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+                    hasta = new Date().toISOString().split('T')[0];
+                    break;
+            }
+            
+            document.getElementById('fechaDesde').value = desde;
+            document.getElementById('fechaHasta').value = hasta;
+            aplicarFiltrosFecha();
+        }
+        
+        // Limpiar filtros de fecha
+        function limpiarFiltrosFecha() {
+            document.getElementById('fechaDesde').value = '';
+            document.getElementById('fechaHasta').value = '';
+            aplicarFiltrosFecha();
+        }
+
+        // Exportar a Excel (archivo XLSX real)
+        function exportarExcel() {
+            const registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            
+            if (registros.length === 0) {
+                alert('No hay datos para exportar');
+                return;
+            }
+            
+            // Crear libro de Excel
+            const workbook = XLSX.utils.book_new();
+            
+            // ===== HOJA 1: DATOS PRINCIPALES =====
+            const datosPrincipales = [];
+            
+            // Encabezados
+            datosPrincipales.push([
+                'Fecha',
+                'Hora',
+                'Lote Origen',
+                'Lote Recepción',
+                'Matadero',
+                'Transportista',
+                'Chofer',
+                'Matrícula Cabeza',
+                'Matrícula Remolque',
+                'Temp Camión (°C)',
+                'Peso Bruto Matadero (kg)',
+                'Taras Matadero (kg)',
+                'Peso Neto Matadero (kg)',
+                'Peso Bruto Planta (kg)',
+                'Taras Planta (kg)',
+                'Peso Neto Planta (kg)',
+                'Diferencia Peso (kg)',
+                'Nº Canales',
+                'Peso Medio (kg)',
+                'Otras Materias Primas'
+            ]);
+            
+            // Datos
+            registros.forEach(reg => {
+                datosPrincipales.push([
+                    reg.fecha,
+                    reg.hora,
+                    reg.loteOrigen || reg.lote,
+                    reg.lote,
+                    reg.matadero,
+                    reg.transportista,
+                    reg.chofer,
+                    reg.matriculaCabeza,
+                    reg.matriculaRemolque,
+                    reg.temperaturaCamion,
+                    reg.pesoBrutoMatadero || '',
+                    reg.tarasMatadero || '',
+                    reg.pesoNetoMatadero || '',
+                    reg.pesoBruto,
+                    reg.taras,
+                    reg.pesoNeto,
+                    reg.diferenciaPeso || '',
+                    reg.numeroCanales,
+                    reg.pesoMedio,
+                    reg.otrasMaterias
+                ]);
+            });
+            
+            const wsDatosPrincipales = XLSX.utils.aoa_to_sheet(datosPrincipales);
+            
+            // Establecer anchos de columna
+            wsDatosPrincipales['!cols'] = [
+                {wch: 12}, {wch: 8}, {wch: 15}, {wch: 15}, {wch: 20},
+                {wch: 20}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 12},
+                {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12},
+                {wch: 12}, {wch: 12}, {wch: 10}, {wch: 12}, {wch: 30}
+            ];
+            
+            XLSX.utils.book_append_sheet(workbook, wsDatosPrincipales, 'Datos Principales');
+            
+            // ===== HOJA 2: COMPROBACIÓN DE CANALES =====
+            const datosCanales = [];
+            
+            // Encabezados
+            const encabezadosCanales = ['Fecha', 'Lote Recepción', 'Matadero'];
+            for (let i = 1; i <= 15; i++) {
+                encabezadosCanales.push(`Canal ${i} Peso`);
+                encabezadosCanales.push(`Canal ${i} Temp`);
+                encabezadosCanales.push(`Canal ${i} Obs`);
+            }
+            datosCanales.push(encabezadosCanales);
+            
+            // Datos
+            registros.forEach(reg => {
+                const fila = [reg.fecha, reg.lote, reg.matadero];
+                
+                reg.canales.forEach(canal => {
+                    fila.push(canal.peso || '');
+                    fila.push(canal.temperatura || '');
+                    fila.push(canal.observaciones || '');
+                });
+                
+                datosCanales.push(fila);
+            });
+            
+            const wsDatosCanales = XLSX.utils.aoa_to_sheet(datosCanales);
+            
+            // Establecer anchos de columna
+            const colsCanales = [{wch: 12}, {wch: 15}, {wch: 20}];
+            for (let i = 0; i < 15; i++) {
+                colsCanales.push({wch: 10}, {wch: 10}, {wch: 20});
+            }
+            wsDatosCanales['!cols'] = colsCanales;
+            
+            XLSX.utils.book_append_sheet(workbook, wsDatosCanales, 'Comprobación Canales');
+            
+            // ===== HOJA 3: RESUMEN ESTADÍSTICO =====
+            const totalRecepciones = registros.length;
+            const totalPesoNeto = registros.reduce((sum, r) => sum + r.pesoNeto, 0);
+            const totalCanales = registros.reduce((sum, r) => sum + r.numeroCanales, 0);
+            const pesoMedioGeneral = totalPesoNeto / totalCanales;
+            const tempMediaCamion = registros.reduce((sum, r) => sum + r.temperaturaCamion, 0) / registros.length;
+            
+            const registrosConDiferencia = registros.filter(r => r.diferenciaPeso !== undefined && r.diferenciaPeso !== 0);
+            const diferenciaTotalPeso = registrosConDiferencia.reduce((sum, r) => sum + (r.diferenciaPeso || 0), 0);
+            const diferenciaMediaPeso = registrosConDiferencia.length > 0 ? diferenciaTotalPeso / registrosConDiferencia.length : 0;
+            
+            const datosResumen = [
+                ['RESUMEN ESTADÍSTICO'],
+                [''],
+                ['Indicador', 'Valor'],
+                ['Total Recepciones', totalRecepciones],
+                ['Peso Total Recibido (kg)', totalPesoNeto.toFixed(2)],
+                ['Total Canales Procesadas', totalCanales],
+                ['Peso Medio por Canal (kg)', pesoMedioGeneral.toFixed(2)],
+                ['Temperatura Media Camión (°C)', tempMediaCamion.toFixed(1)],
+                ['Diferencia Media de Peso (kg)', diferenciaMediaPeso.toFixed(2)],
+                [''],
+                ['ANÁLISIS POR MATADERO'],
+                [''],
+                ['Matadero', 'Recepciones', 'Peso Total (kg)', 'Total Canales', 'Peso Medio/Canal (kg)']
+            ];
+            
+            // Análisis por matadero
+            const porMatadero = {};
+            registros.forEach(r => {
+                if (!porMatadero[r.matadero]) {
+                    porMatadero[r.matadero] = { count: 0, peso: 0, canales: 0 };
+                }
+                porMatadero[r.matadero].count++;
+                porMatadero[r.matadero].peso += r.pesoNeto;
+                porMatadero[r.matadero].canales += r.numeroCanales;
+            });
+            
+            Object.keys(porMatadero).forEach(matadero => {
+                const data = porMatadero[matadero];
+                datosResumen.push([
+                    matadero,
+                    data.count,
+                    data.peso.toFixed(2),
+                    data.canales,
+                    (data.peso / data.canales).toFixed(2)
+                ]);
+            });
+            
+            const wsResumen = XLSX.utils.aoa_to_sheet(datosResumen);
+            wsResumen['!cols'] = [{wch: 25}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 18}];
+            
+            XLSX.utils.book_append_sheet(workbook, wsResumen, 'Resumen Estadístico');
+            
+            // Generar archivo
+            const fecha = new Date().toISOString().split('T')[0];
+            const nombreArchivo = `Recepciones_Canales_${fecha}.xlsx`;
+            
+            XLSX.writeFile(workbook, nombreArchivo);
+            
+            mostrarNotificacion('✓ Archivo Excel descargado: ' + nombreArchivo, 'success');
+        }
+
+        // Cambiar tab
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            // Encontrar y activar el botón correcto
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                if (tab.textContent.toLowerCase().includes(tabName.substring(0, 4))) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            
+            if (tabName === 'historial') {
+                cargarHistorial();
+            } else if (tabName === 'estadisticas') {
+                actualizarEstadisticas();
+            } else if (tabName === 'gestion') {
+                cargarDatosMaestros();
+            }
+        }
+
+        // Mostrar notificación
+        function mostrarNotificacion(mensaje, tipo) {
+            const notif = document.createElement('div');
+            notif.className = `notification ${tipo}`;
+            notif.textContent = mensaje;
+            document.body.appendChild(notif);
+            
+            setTimeout(() => {
+                notif.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => notif.remove(), 300);
+            }, 3000);
+        }
     </script>
 </body>
 </html>
