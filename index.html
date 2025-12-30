@@ -544,18 +544,53 @@
             background: #d32f2f;
             transform: scale(1.1);
         }
-        .sync-status { position: fixed; top: 20px; right: 20px; padding: 0.6rem 1rem; background: white; border-radius: 20px; box-shadow: 0 4px 12px var(--shadow); font-size: 0.85rem; font-weight: 600; z-index: 1000; display: flex; align-items: center; gap: 0.5rem; }
-        .sync-status.online { color: #2ecc71; border: 2px solid #2ecc71; }
-        .sync-status.offline { color: #e74c3c; border: 2px solid #e74c3c; }
-        .sync-status .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.6rem 1rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px var(--shadow);
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .sync-status.online {
+            color: #2ecc71;
+            border: 2px solid #2ecc71;
+        }
+        
+        .sync-status.offline {
+            color: #e74c3c;
+            border: 2px solid #e74c3c;
+        }
+        
+        .sync-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
     </style>
 </head>
 <body>
     <div class="sync-status offline" id="syncStatus">
         <span class="dot"></span>
-        <span id="statusText">Local</span>
+        <span id="statusText">Conectando...</span>
     </div>
+    
     <div class="hero">
         <h1>🥩 Control Recepción de Canales</h1>
         <p>Hnos. Chico Galindo · Trazabilidad y Control de Calidad</p>
@@ -910,7 +945,6 @@
     </div>
 
     <script>
-
         // ===== CONFIGURACIÓN DE SUPABASE =====
         const SUPABASE_URL = 'https://jnomjvxzjqxkqqocdkjy.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impub21qdnh6anF4a3Fxb2Nka2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MjA1MTYsImV4cCI6MjA4MjM5NjUxNn0.ovDs0fo8r9EjWVA7GDBsMw1AYdiqaCP1f6whmsJFsQI';
@@ -918,38 +952,46 @@
         let supabaseClient = null;
         let dbActiva = false;
         
-        // Inicializar Supabase al cargar
-        async function inicializarSupabase() {
-            try {
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                const { data, error } = await supabaseClient.from('recepciones').select('count').limit(1);
-                if (!error) {
-                    dbActiva = true;
-                    actualizarEstadoConexion(true);
-                    console.log('✓ Supabase conectado');
-                    return true;
-                }
-            } catch (error) {
-                console.log('✗ Supabase no disponible, usando localStorage');
-            }
-            actualizarEstadoConexion(false);
-            return false;
-        }
-        
+        // Actualizar estado de conexión
         function actualizarEstadoConexion(conectado) {
             const status = document.getElementById('syncStatus');
             const text = document.getElementById('statusText');
             if (status && text) {
                 if (conectado) {
                     status.className = 'sync-status online';
-                    text.textContent = 'Cloud';
+                    text.textContent = '🟢 Conectado';
+                    dbActiva = true;
                 } else {
                     status.className = 'sync-status offline';
-                    text.textContent = 'Local';
+                    text.textContent = '🔴 Local';
+                    dbActiva = false;
                 }
             }
         }
         
+        // Inicializar Supabase
+        async function inicializarSupabase() {
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                const { data, error } = await supabaseClient.from('recepciones').select('count').limit(1);
+                
+                if (error) {
+                    console.error('Error Supabase:', error);
+                    actualizarEstadoConexion(false);
+                    return false;
+                }
+                
+                actualizarEstadoConexion(true);
+                mostrarNotificacion('✓ Conectado a la nube', 'success');
+                return true;
+            } catch (error) {
+                console.error('Error conectando:', error);
+                actualizarEstadoConexion(false);
+                return false;
+            }
+        }
+        
+
         // =========================================
         // CONFIGURACIÓN DE SEGURIDAD
         // =========================================
@@ -959,13 +1001,14 @@
         // =========================================
         
         // Inicializar
-        document.addEventListener('DOMContentLoaded', function() {
-            inicializarSupabase();
+        document.addEventListener('DOMContentLoaded', async function() {
+            await inicializarSupabase();
+            
             generarFilasCanales();
-            cargarHistorial();
-            actualizarEstadisticas();
-            cargarDatosMaestros();
-            cargarSelectores();
+            await cargarHistorial();
+            await actualizarEstadisticas();
+            await cargarDatosMaestros();
+            await cargarSelectores();
             
             // Establecer fecha y hora actuales
             const ahora = new Date();
@@ -974,11 +1017,15 @@
         });
         
         // Cargar datos maestros en los selectores
-        function cargarSelectores() {
+        async function cargarSelectores() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            for (const tipo of tipos) {
+                // Cargar desde Supabase o localStorage
+                let datos = await cargarDatosMaestrosSupabase(tipo);
+                if (!datos) {
+                    datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                }
                 let selectId = '';
                 
                 switch(tipo) {
@@ -1011,11 +1058,15 @@
         }
         
         // Cargar datos maestros en listas
-        function cargarDatosMaestros() {
+        async function cargarDatosMaestros() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            for (const tipo of tipos) {
+                // Cargar desde Supabase o localStorage
+                let datos = await cargarDatosMaestrosSupabase(tipo);
+                if (!datos) {
+                    datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                }
                 let listaId = '';
                 
                 switch(tipo) {
@@ -1043,11 +1094,11 @@
                     `;
                     lista.appendChild(tag);
                 });
-            });
+            }
         }
         
         // Agregar dato maestro
-        function agregarDato(tipo, inputId) {
+        async function agregarDato(tipo, inputId) {
             const input = document.getElementById(inputId);
             const valor = input.value.trim().toUpperCase();
             
@@ -1074,7 +1125,7 @@
         }
         
         // Eliminar dato maestro
-        function eliminarDato(tipo, valor) {
+        async function eliminarDato(tipo, valor) {
             if (!confirm(`¿Eliminar "${valor}"?`)) return;
             
             let datos = JSON.parse(localStorage.getItem(tipo)) || [];
@@ -1236,7 +1287,7 @@
         }
 
         // Guardar registro
-        document.getElementById('recepcionForm').addEventListener('submit', function(e) {
+        document.getElementById('recepcionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Recopilar datos del formulario
@@ -1283,13 +1334,19 @@
                 });
             }
             
-            // Guardar en localStorage
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
-            registros.push(registro);
-            localStorage.setItem('registrosCanales', JSON.stringify(registros));
+            // Intentar guardar en Supabase primero
+            const resultadoSupabase = await guardarEnSupabase(registro);
             
-            // Mostrar notificación
-            mostrarNotificacion('✓ Registro guardado exitosamente', 'success');
+            if (resultadoSupabase) {
+                mostrarNotificacion('✓ Registro guardado y sincronizado', 'success');
+            } else {
+                // Fallback a localStorage
+                registro.id = Date.now();
+                let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                registros.push(registro);
+                localStorage.setItem('registrosCanales', JSON.stringify(registros));
+                mostrarNotificacion('✓ Registro guardado localmente', 'success');
+            }
             
             // Limpiar formulario
             limpiarFormulario();
@@ -1323,8 +1380,14 @@
         }
 
         // Cargar historial
-        function cargarHistorial() {
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+        async async function cargarHistorial() {
+            // Intentar cargar desde Supabase
+            let registros = await cargarDesdeSupabase();
+            
+            // Fallback a localStorage si falla
+            if (!registros) {
+                registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            }
             const container = document.getElementById('historialContainer');
             
             // Aplicar filtros de fecha si existen
@@ -1487,7 +1550,7 @@
         }
         
         // Eliminar registro
-        function eliminarRegistro(id) {
+        async function eliminarRegistro(id) {
             const password = prompt('🔒 Introduce la contraseña para eliminar este registro:');
             
             if (password === null) {
@@ -1502,13 +1565,21 @@
             
             if (!confirm('¿Estás seguro de eliminar este registro?')) return;
             
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
-            registros = registros.filter(r => r.id !== id);
-            localStorage.setItem('registrosCanales', JSON.stringify(registros));
+            // Intentar eliminar de Supabase
+            const eliminado = await eliminarDeSupabase(id);
             
-            mostrarNotificacion('Registro eliminado correctamente', 'success');
-            cargarHistorial();
-            actualizarEstadisticas();
+            if (eliminado) {
+                mostrarNotificacion('Registro eliminado', 'success');
+            } else {
+                // Fallback a localStorage
+                let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                registros = registros.filter(r => r.id !== id);
+                localStorage.setItem('registrosCanales', JSON.stringify(registros));
+                mostrarNotificacion('Registro eliminado localmente', 'success');
+            }
+            
+            await cargarHistorial();
+            await actualizarEstadisticas();
         }
 
         // Confirmar borrar todo
@@ -1535,8 +1606,12 @@
         }
 
         // Actualizar estadísticas
-        function actualizarEstadisticas() {
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+        async async function actualizarEstadisticas() {
+            // Cargar desde Supabase o localStorage
+            let registros = await cargarDesdeSupabase();
+            if (!registros) {
+                registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            }
             
             // Aplicar filtros de fecha si existen
             const fechaDesde = document.getElementById('fechaDesde')?.value;
