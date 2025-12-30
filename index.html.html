@@ -7,6 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <!-- SheetJS para exportar a Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -543,9 +545,53 @@
             background: #d32f2f;
             transform: scale(1.1);
         }
+        
+        .sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.6rem 1rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px var(--shadow);
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .sync-status.online {
+            color: #2ecc71;
+            border: 2px solid #2ecc71;
+        }
+        
+        .sync-status.offline {
+            color: #e74c3c;
+            border: 2px solid #e74c3c;
+        }
+        
+        .sync-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
     </style>
 </head>
 <body>
+    <div class="sync-status offline" id="syncStatus">
+        <span class="dot"></span>
+        <span id="statusText">Conectando...</span>
+    </div>
+    
     <div class="hero">
         <h1>🥩 Control Recepción de Canales</h1>
         <p>Hnos. Chico Galindo · Trazabilidad y Control de Calidad</p>
@@ -901,6 +947,32 @@
 
     <script>
         // =========================================
+        // CONFIGURACIÓN DE SUPABASE
+        // =========================================
+        const SUPABASE_URL = 'https://jnomjvxzjqxkqqocdkjy.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impub21qdnh6anF4a3Fxb2Nka2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MjA1MTYsImV4cCI6MjA4MjM5NjUxNn0.ovDs0fo8r9EjWVA7GDBsMw1AYdiqaCP1f6whmsJFsQI';
+        
+        let supabase;
+        let dbReady = false;
+        
+        // Actualizar estado de conexión
+        function actualizarEstadoConexion(conectado) {
+            const status = document.getElementById('syncStatus');
+            const text = document.getElementById('statusText');
+            if (status && text) {
+                if (conectado) {
+                    status.className = 'sync-status online';
+                    text.textContent = '🟢 Conectado';
+                    dbReady = true;
+                } else {
+                    status.className = 'sync-status offline';
+                    text.textContent = '🔴 Desconectado';
+                    dbReady = false;
+                }
+            }
+        }
+        
+        // =========================================
         // CONFIGURACIÓN DE SEGURIDAD
         // =========================================
         // Contraseña predeterminada: admin2024
@@ -909,12 +981,28 @@
         // =========================================
         
         // Inicializar
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Inicializar Supabase
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                
+                // Verificar conexión
+                const { data, error } = await supabase.from('recepciones').select('count').limit(1);
+                if (error) throw error;
+                
+                actualizarEstadoConexion(true);
+                mostrarNotificacion('✓ Conectado a la base de datos', 'success');
+            } catch (error) {
+                console.error('Error conectando a Supabase:', error);
+                actualizarEstadoConexion(false);
+                mostrarNotificacion('⚠️ Error de conexión: ' + error.message, 'error');
+            }
+            
             generarFilasCanales();
-            cargarHistorial();
-            actualizarEstadisticas();
-            cargarDatosMaestros();
-            cargarSelectores();
+            await cargarHistorial();
+            await actualizarEstadisticas();
+            await cargarDatosMaestros();
+            await cargarSelectores();
             
             // Establecer fecha y hora actuales
             const ahora = new Date();
@@ -923,13 +1011,31 @@
         });
         
         // Cargar datos maestros en los selectores
-        function cargarSelectores() {
+        async function cargarSelectores() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
-                let selectId = '';
+            for (const tipo of tipos) {
+                let datos = [];
                 
+                if (dbReady) {
+                    try {
+                        const { data, error } = await supabase
+                            .from('datos_maestros')
+                            .select('valor')
+                            .eq('tipo', tipo)
+                            .order('valor');
+                        
+                        if (error) throw error;
+                        datos = data.map(d => d.valor);
+                    } catch (error) {
+                        console.error(`Error cargando ${tipo}:`, error);
+                        datos = [];
+                    }
+                } else {
+                    datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                }
+                
+                let selectId = '';
                 switch(tipo) {
                     case 'mataderos': selectId = 'matadero'; break;
                     case 'transportistas': selectId = 'transportista'; break;
@@ -939,12 +1045,11 @@
                 }
                 
                 const select = document.getElementById(selectId);
-                const valorActual = select.value;
+                if (!select) continue;
                 
-                // Limpiar opciones excepto la primera
+                const valorActual = select.value;
                 select.innerHTML = '<option value="">-- Seleccionar --</option>';
                 
-                // Agregar opciones
                 datos.forEach(item => {
                     const option = document.createElement('option');
                     option.value = item;
@@ -952,21 +1057,38 @@
                     select.appendChild(option);
                 });
                 
-                // Restaurar valor si existía
                 if (valorActual) {
                     select.value = valorActual;
                 }
-            });
+            }
         }
         
         // Cargar datos maestros en listas
-        function cargarDatosMaestros() {
+        async function cargarDatosMaestros() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
-                let listaId = '';
+            for (const tipo of tipos) {
+                let datos = [];
                 
+                if (dbReady) {
+                    try {
+                        const { data, error } = await supabase
+                            .from('datos_maestros')
+                            .select('valor')
+                            .eq('tipo', tipo)
+                            .order('valor');
+                        
+                        if (error) throw error;
+                        datos = data.map(d => d.valor);
+                    } catch (error) {
+                        console.error(`Error cargando ${tipo}:`, error);
+                        datos = [];
+                    }
+                } else {
+                    datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                }
+                
+                let listaId = '';
                 switch(tipo) {
                     case 'mataderos': listaId = 'listaMataderos'; break;
                     case 'transportistas': listaId = 'listaTransportistas'; break;
@@ -976,11 +1098,13 @@
                 }
                 
                 const lista = document.getElementById(listaId);
+                if (!lista) continue;
+                
                 lista.innerHTML = '';
                 
                 if (datos.length === 0) {
                     lista.innerHTML = '<p style="color: #999; font-style: italic;">No hay datos registrados</p>';
-                    return;
+                    continue;
                 }
                 
                 datos.forEach(item => {
@@ -992,11 +1116,11 @@
                     `;
                     lista.appendChild(tag);
                 });
-            });
+            }
         }
         
         // Agregar dato maestro
-        function agregarDato(tipo, inputId) {
+        async function agregarDato(tipo, inputId) {
             const input = document.getElementById(inputId);
             const valor = input.value.trim().toUpperCase();
             
@@ -1005,34 +1129,82 @@
                 return;
             }
             
-            let datos = JSON.parse(localStorage.getItem(tipo)) || [];
-            
-            if (datos.includes(valor)) {
-                mostrarNotificacion('Este dato ya existe', 'error');
-                return;
+            if (dbReady) {
+                try {
+                    // Verificar si ya existe
+                    const { data: existing } = await supabase
+                        .from('datos_maestros')
+                        .select('id')
+                        .eq('tipo', tipo)
+                        .eq('valor', valor)
+                        .single();
+                    
+                    if (existing) {
+                        mostrarNotificacion('Este dato ya existe', 'error');
+                        return;
+                    }
+                    
+                    // Insertar
+                    const { error } = await supabase
+                        .from('datos_maestros')
+                        .insert([{ tipo, valor }]);
+                    
+                    if (error) throw error;
+                    
+                    mostrarNotificacion('Dato agregado correctamente', 'success');
+                } catch (error) {
+                    console.error('Error agregando dato:', error);
+                    mostrarNotificacion('Error al agregar: ' + error.message, 'error');
+                    return;
+                }
+            } else {
+                let datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                
+                if (datos.includes(valor)) {
+                    mostrarNotificacion('Este dato ya existe', 'error');
+                    return;
+                }
+                
+                datos.push(valor);
+                datos.sort();
+                localStorage.setItem(tipo, JSON.stringify(datos));
+                mostrarNotificacion('Dato agregado correctamente', 'success');
             }
             
-            datos.push(valor);
-            datos.sort();
-            localStorage.setItem(tipo, JSON.stringify(datos));
-            
             input.value = '';
-            cargarDatosMaestros();
-            cargarSelectores();
-            mostrarNotificacion('Dato agregado correctamente', 'success');
+            await cargarDatosMaestros();
+            await cargarSelectores();
         }
         
         // Eliminar dato maestro
-        function eliminarDato(tipo, valor) {
+        async function eliminarDato(tipo, valor) {
             if (!confirm(`¿Eliminar "${valor}"?`)) return;
             
-            let datos = JSON.parse(localStorage.getItem(tipo)) || [];
-            datos = datos.filter(d => d !== valor);
-            localStorage.setItem(tipo, JSON.stringify(datos));
+            if (dbReady) {
+                try {
+                    const { error } = await supabase
+                        .from('datos_maestros')
+                        .delete()
+                        .eq('tipo', tipo)
+                        .eq('valor', valor);
+                    
+                    if (error) throw error;
+                    
+                    mostrarNotificacion('Dato eliminado', 'success');
+                } catch (error) {
+                    console.error('Error eliminando dato:', error);
+                    mostrarNotificacion('Error al eliminar: ' + error.message, 'error');
+                    return;
+                }
+            } else {
+                let datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                datos = datos.filter(d => d !== valor);
+                localStorage.setItem(tipo, JSON.stringify(datos));
+                mostrarNotificacion('Dato eliminado', 'success');
+            }
             
-            cargarDatosMaestros();
-            cargarSelectores();
-            mostrarNotificacion('Dato eliminado', 'success');
+            await cargarDatosMaestros();
+            await cargarSelectores();
         }
         
         // Abrir gestión de datos (función auxiliar)
@@ -1185,7 +1357,7 @@
         }
 
         // Guardar registro
-        document.getElementById('recepcionForm').addEventListener('submit', function(e) {
+        document.getElementById('recepcionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Recopilar datos del formulario
@@ -1194,37 +1366,36 @@
             const diferencia = pesoNetoMatadero ? (pesoNetoPlanta - pesoNetoMatadero) : 0;
             
             const registro = {
-                id: Date.now(),
                 fecha: document.getElementById('fecha').value,
                 hora: document.getElementById('hora').value,
-                loteOrigen: document.getElementById('loteOrigen').value,
+                lote_origen: document.getElementById('loteOrigen').value,
                 lote: document.getElementById('lote').value,
                 matadero: document.getElementById('matadero').value,
                 transportista: document.getElementById('transportista').value,
                 chofer: document.getElementById('chofer').value,
-                matriculaCabeza: document.getElementById('matriculaCabeza').value,
-                matriculaRemolque: document.getElementById('matriculaRemolque').value,
-                temperaturaCamion: parseFloat(document.getElementById('temperaturaCamion').value),
-                pesoBrutoMatadero: parseFloat(document.getElementById('pesoBrutoMatadero').value) || null,
-                tarasMatadero: parseFloat(document.getElementById('tarasMatadero').value) || null,
-                pesoNetoMatadero: pesoNetoMatadero,
-                pesoBruto: parseFloat(document.getElementById('pesoBruto').value),
+                matricula_cabeza: document.getElementById('matriculaCabeza').value,
+                matricula_remolque: document.getElementById('matriculaRemolque').value,
+                temperatura_camion: parseFloat(document.getElementById('temperaturaCamion').value),
+                peso_bruto_matadero: parseFloat(document.getElementById('pesoBrutoMatadero').value) || null,
+                taras_matadero: parseFloat(document.getElementById('tarasMatadero').value) || null,
+                peso_neto_matadero: pesoNetoMatadero,
+                peso_bruto: parseFloat(document.getElementById('pesoBruto').value),
                 taras: parseFloat(document.getElementById('taras').value),
-                pesoNeto: pesoNetoPlanta,
-                diferenciaPeso: diferencia,
-                numeroCanales: parseInt(document.getElementById('numeroCanales').value),
-                pesoMedio: parseFloat(document.getElementById('pesoMedio').value),
-                otrasMaterias: document.getElementById('otrasMaterias').value,
-                canales: []
+                peso_neto: pesoNetoPlanta,
+                diferencia_peso: diferencia,
+                numero_canales: parseInt(document.getElementById('numeroCanales').value),
+                peso_medio: parseFloat(document.getElementById('pesoMedio').value),
+                otras_materias: document.getElementById('otrasMaterias').value
             };
             
             // Recopilar datos de canales
+            const canales = [];
             for (let i = 1; i <= 15; i++) {
                 const peso = document.querySelector(`.canal-peso[data-canal="${i}"]`).value;
                 const temp = document.querySelector(`.canal-temp[data-canal="${i}"]`).value;
                 const obs = document.querySelector(`.canal-obs[data-canal="${i}"]`).value;
                 
-                registro.canales.push({
+                canales.push({
                     numero: i,
                     peso: peso ? parseFloat(peso) : null,
                     temperatura: temp ? parseFloat(temp) : null,
@@ -1232,20 +1403,69 @@
                 });
             }
             
-            // Guardar en localStorage
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
-            registros.push(registro);
-            localStorage.setItem('registrosCanales', JSON.stringify(registros));
-            
-            // Mostrar notificación
-            mostrarNotificacion('✓ Registro guardado exitosamente', 'success');
+            // Guardar en Supabase o localStorage
+            if (dbReady) {
+                try {
+                    // Guardar recepción
+                    const { data: recepcion, error: errorRecepcion } = await supabase
+                        .from('recepciones')
+                        .insert([registro])
+                        .select()
+                        .single();
+                    
+                    if (errorRecepcion) throw errorRecepcion;
+                    
+                    // Guardar canales
+                    const canalesConId = canales.map(c => ({
+                        ...c,
+                        recepcion_id: recepcion.id
+                    }));
+                    
+                    const { error: errorCanales } = await supabase
+                        .from('canales')
+                        .insert(canalesConId);
+                    
+                    if (errorCanales) throw errorCanales;
+                    
+                    mostrarNotificacion('✓ Registro guardado y sincronizado', 'success');
+                } catch (error) {
+                    console.error('Error guardando en Supabase:', error);
+                    mostrarNotificacion('❌ Error al guardar: ' + error.message, 'error');
+                    return;
+                }
+            } else {
+                // Fallback a localStorage
+                const registroLocal = {
+                    id: Date.now(),
+                    ...registro,
+                    loteOrigen: registro.lote_origen,
+                    matriculaCabeza: registro.matricula_cabeza,
+                    matriculaRemolque: registro.matricula_remolque,
+                    temperaturaCamion: registro.temperatura_camion,
+                    pesoBrutoMatadero: registro.peso_bruto_matadero,
+                    tarasMatadero: registro.taras_matadero,
+                    pesoNetoMatadero: registro.peso_neto_matadero,
+                    pesoBruto: registro.peso_bruto,
+                    pesoNeto: registro.peso_neto,
+                    diferenciaPeso: registro.diferencia_peso,
+                    numeroCanales: registro.numero_canales,
+                    pesoMedio: registro.peso_medio,
+                    otrasMaterias: registro.otras_materias,
+                    canales: canales
+                };
+                
+                let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                registros.push(registroLocal);
+                localStorage.setItem('registrosCanales', JSON.stringify(registros));
+                mostrarNotificacion('✓ Registro guardado localmente', 'success');
+            }
             
             // Limpiar formulario
             limpiarFormulario();
             
             // Actualizar historial y estadísticas
-            cargarHistorial();
-            actualizarEstadisticas();
+            await cargarHistorial();
+            await actualizarEstadisticas();
         });
 
         // Limpiar formulario
@@ -1272,8 +1492,42 @@
         }
 
         // Cargar historial
-        function cargarHistorial() {
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+        async function cargarHistorial() {
+            let registros = [];
+            
+            // Cargar desde Supabase o localStorage
+            if (dbReady) {
+                try {
+                    const { data, error } = await supabase
+                        .from('recepciones')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    // Convertir formato de Supabase a formato interno
+                    registros = data.map(reg => ({
+                        id: reg.id,
+                        fecha: reg.fecha,
+                        hora: reg.hora,
+                        loteOrigen: reg.lote_origen,
+                        lote: reg.lote,
+                        matadero: reg.matadero,
+                        numeroCanales: reg.numero_canales,
+                        pesoNetoMatadero: reg.peso_neto_matadero,
+                        pesoNeto: reg.peso_neto,
+                        diferenciaPeso: reg.diferencia_peso,
+                        pesoMedio: reg.peso_medio,
+                        temperaturaCamion: reg.temperatura_camion
+                    }));
+                } catch (error) {
+                    console.error('Error cargando historial:', error);
+                    registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                }
+            } else {
+                registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            }
+            
             const container = document.getElementById('historialContainer');
             
             // Aplicar filtros de fecha si existen
@@ -1331,7 +1585,7 @@
                     <tbody>
             `;
             
-            registros.reverse().forEach(reg => {
+            registros.forEach(reg => {
                 const pesoMatadero = reg.pesoNetoMatadero || 0;
                 const diferencia = reg.diferenciaPeso || 0;
                 const colorDiferencia = Math.abs(diferencia) > 10 ? '#dc3545' : '#28a745';
@@ -1436,11 +1690,10 @@
         }
         
         // Eliminar registro
-        function eliminarRegistro(id) {
+        async function eliminarRegistro(id) {
             const password = prompt('🔒 Introduce la contraseña para eliminar este registro:');
             
             if (password === null) {
-                // Usuario canceló
                 return;
             }
             
@@ -1451,13 +1704,30 @@
             
             if (!confirm('¿Estás seguro de eliminar este registro?')) return;
             
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
-            registros = registros.filter(r => r.id !== id);
-            localStorage.setItem('registrosCanales', JSON.stringify(registros));
+            if (dbReady) {
+                try {
+                    const { error } = await supabase
+                        .from('recepciones')
+                        .delete()
+                        .eq('id', id);
+                    
+                    if (error) throw error;
+                    
+                    mostrarNotificacion('Registro eliminado correctamente', 'success');
+                } catch (error) {
+                    console.error('Error eliminando registro:', error);
+                    mostrarNotificacion('Error al eliminar: ' + error.message, 'error');
+                    return;
+                }
+            } else {
+                let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                registros = registros.filter(r => r.id !== id);
+                localStorage.setItem('registrosCanales', JSON.stringify(registros));
+                mostrarNotificacion('Registro eliminado correctamente', 'success');
+            }
             
-            mostrarNotificacion('Registro eliminado correctamente', 'success');
-            cargarHistorial();
-            actualizarEstadisticas();
+            await cargarHistorial();
+            await actualizarEstadisticas();
         }
 
         // Confirmar borrar todo
@@ -1484,8 +1754,36 @@
         }
 
         // Actualizar estadísticas
-        function actualizarEstadisticas() {
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+        async function actualizarEstadisticas() {
+            let registros = [];
+            
+            // Cargar desde Supabase o localStorage
+            if (dbReady) {
+                try {
+                    const { data, error } = await supabase
+                        .from('recepciones')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    // Convertir formato de Supabase a formato interno
+                    registros = data.map(reg => ({
+                        id: reg.id,
+                        fecha: reg.fecha,
+                        matadero: reg.matadero,
+                        numeroCanales: reg.numero_canales,
+                        pesoNeto: reg.peso_neto,
+                        diferenciaPeso: reg.diferencia_peso,
+                        temperaturaCamion: reg.temperatura_camion
+                    }));
+                } catch (error) {
+                    console.error('Error cargando estadísticas:', error);
+                    registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                }
+            } else {
+                registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            }
             
             // Aplicar filtros de fecha si existen
             const fechaDesde = document.getElementById('fechaDesde')?.value;
