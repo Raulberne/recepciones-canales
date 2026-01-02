@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <!-- SheetJS para exportar a Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -543,9 +544,40 @@
             background: #d32f2f;
             transform: scale(1.1);
         }
+
+        .sync-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.6rem 1rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .sync-status.online { color: #2ecc71; border: 2px solid #2ecc71; }
+        .sync-status.offline { color: #e74c3c; border: 2px solid #e74c3c; }
+        .sync-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
 <body>
+    <div class="sync-status offline" id="syncStatus">
+        <span class="dot"></span>
+        <span id="statusText">Local</span>
+    </div>
+    
     <div class="hero">
         <h1>🥩 Control Recepción de Canales</h1>
         <p>Hnos. Chico Galindo · Trazabilidad y Control de Calidad</p>
@@ -909,12 +941,12 @@
         // =========================================
         
         // Inicializar
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             generarFilasCanales();
-            cargarHistorial();
-            actualizarEstadisticas();
-            cargarDatosMaestros();
-            cargarSelectores();
+            await cargarHistorial();
+            await actualizarEstadisticas();
+            await cargarDatosMaestros();
+            await cargarSelectores();
             
             // Establecer fecha y hora actuales
             const ahora = new Date();
@@ -923,11 +955,12 @@
         });
         
         // Cargar datos maestros en los selectores
-        function cargarSelectores() {
+        async function cargarSelectores() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            for (const tipo of tipos) {
+                let datos = await SYNC.loadDatosMaestros(tipo);
+                if (!datos) datos = JSON.parse(localStorage.getItem(tipo)) || [];
                 let selectId = '';
                 
                 switch(tipo) {
@@ -956,15 +989,16 @@
                 if (valorActual) {
                     select.value = valorActual;
                 }
-            });
+            }
         }
         
         // Cargar datos maestros en listas
-        function cargarDatosMaestros() {
+        async function cargarDatosMaestros() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            for (const tipo of tipos) {
+                let datos = await SYNC.loadDatosMaestros(tipo);
+                if (!datos) datos = JSON.parse(localStorage.getItem(tipo)) || [];
                 let listaId = '';
                 
                 switch(tipo) {
@@ -996,7 +1030,7 @@
         }
         
         // Agregar dato maestro
-        function agregarDato(tipo, inputId) {
+        async function agregarDato(tipo, inputId) {
             const input = document.getElementById(inputId);
             const valor = input.value.trim().toUpperCase();
             
@@ -1023,7 +1057,7 @@
         }
         
         // Eliminar dato maestro
-        function eliminarDato(tipo, valor) {
+        async function eliminarDato(tipo, valor) {
             if (!confirm(`¿Eliminar "${valor}"?`)) return;
             
             let datos = JSON.parse(localStorage.getItem(tipo)) || [];
@@ -1185,7 +1219,7 @@
         }
 
         // Guardar registro
-        document.getElementById('recepcionForm').addEventListener('submit', function(e) {
+        document.getElementById('recepcionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Recopilar datos del formulario
@@ -1232,13 +1266,19 @@
                 });
             }
             
-            // Guardar en localStorage
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
-            registros.push(registro);
-            localStorage.setItem('registrosCanales', JSON.stringify(registros));
+            // Intentar guardar en cloud
+            const cloudResult = await SYNC.saveRecepcion(registro);
             
-            // Mostrar notificación
-            mostrarNotificacion('✓ Registro guardado exitosamente', 'success');
+            if (cloudResult) {
+                mostrarNotificacion('✓ Guardado y sincronizado', 'success');
+            } else {
+                // Fallback a localStorage
+                registro.id = Date.now();
+                let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                registros.push(registro);
+                localStorage.setItem('registrosCanales', JSON.stringify(registros));
+                mostrarNotificacion('✓ Guardado localmente', 'success');
+            }
             
             // Limpiar formulario
             limpiarFormulario();
@@ -1272,8 +1312,14 @@
         }
 
         // Cargar historial
-        function cargarHistorial() {
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+        async async function cargarHistorial() {
+            // Intentar cargar desde cloud
+            let registros = await SYNC.loadRecepciones();
+            
+            // Fallback a localStorage
+            if (!registros) {
+                registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+            }
             const container = document.getElementById('historialContainer');
             
             // Aplicar filtros de fecha si existen
@@ -1436,7 +1482,7 @@
         }
         
         // Eliminar registro
-        function eliminarRegistro(id) {
+        async function eliminarRegistro(id) {
             const password = prompt('🔒 Introduce la contraseña para eliminar este registro:');
             
             if (password === null) {
@@ -1451,13 +1497,19 @@
             
             if (!confirm('¿Estás seguro de eliminar este registro?')) return;
             
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
-            registros = registros.filter(r => r.id !== id);
-            localStorage.setItem('registrosCanales', JSON.stringify(registros));
+            const cloudDeleted = await SYNC.deleteRecepcion(id);
             
-            mostrarNotificacion('Registro eliminado correctamente', 'success');
-            cargarHistorial();
-            actualizarEstadisticas();
+            if (cloudDeleted) {
+                mostrarNotificacion('Registro eliminado', 'success');
+            } else {
+                let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                registros = registros.filter(r => r.id !== id);
+                localStorage.setItem('registrosCanales', JSON.stringify(registros));
+                mostrarNotificacion('Registro eliminado localmente', 'success');
+            }
+            
+            await cargarHistorial();
+            await actualizarEstadisticas();
         }
 
         // Confirmar borrar todo
@@ -1484,8 +1536,9 @@
         }
 
         // Actualizar estadísticas
-        function actualizarEstadisticas() {
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+        async async function actualizarEstadisticas() {
+            let registros = await SYNC.loadRecepciones();
+            if (!registros) registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
             
             // Aplicar filtros de fecha si existen
             const fechaDesde = document.getElementById('fechaDesde')?.value;
@@ -1860,6 +1913,194 @@
                 setTimeout(() => notif.remove(), 300);
             }, 3000);
         }
+
+        
+        // ==========================================
+        // SISTEMA DE SINCRONIZACIÓN SUPABASE
+        // ==========================================
+        
+        const SYNC = {
+            url: 'https://jnomjvxzjqxkqqocdkjy.supabase.co',
+            key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impub21qdnh6anF4a3Fxb2Nka2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MjA1MTYsImV4cCI6MjA4MjM5NjUxNn0.ovDs0fo8r9EjWVA7GDBsMw1AYdiqaCP1f6whmsJFsQI',
+            client: null,
+            activo: false,
+            
+            async init() {
+                try {
+                    this.client = window.supabase.createClient(this.url, this.key);
+                    const { error } = await this.client.from('recepciones').select('count').limit(1);
+                    if (!error) {
+                        this.activo = true;
+                        this.updateUI(true);
+                        console.log('✓ Sincronización activa');
+                    }
+                } catch (e) {
+                    this.updateUI(false);
+                    console.log('✗ Modo local');
+                }
+            },
+            
+            updateUI(online) {
+                const status = document.getElementById('syncStatus');
+                const text = document.getElementById('statusText');
+                if (status && text) {
+                    status.className = online ? 'sync-status online' : 'sync-status offline';
+                    text.textContent = online ? 'Cloud' : 'Local';
+                }
+            },
+            
+            // Guardar recepción
+            async saveRecepcion(reg) {
+                if (!this.activo) return null;
+                try {
+                    const { data, error } = await this.client.from('recepciones').insert([{
+                        fecha: reg.fecha,
+                        hora: reg.hora,
+                        lote_origen: reg.loteOrigen,
+                        lote: reg.lote,
+                        matadero: reg.matadero,
+                        transportista: reg.transportista,
+                        chofer: reg.chofer,
+                        matricula_cabeza: reg.matriculaCabeza,
+                        matricula_remolque: reg.matriculaRemolque,
+                        temperatura_camion: reg.temperaturaCamion,
+                        peso_bruto_matadero: reg.pesoBrutoMatadero || null,
+                        taras_matadero: reg.tarasMatadero || null,
+                        peso_neto_matadero: reg.pesoNetoMatadero || null,
+                        peso_bruto: reg.pesoBruto,
+                        taras: reg.taras,
+                        peso_neto: reg.pesoNeto,
+                        diferencia_peso: reg.diferenciaPeso || 0,
+                        numero_canales: reg.numeroCanales,
+                        peso_medio: reg.pesoMedio,
+                        otras_materias: reg.otrasMaterias
+                    }]).select().single();
+                    
+                    if (error) throw error;
+                    
+                    // Guardar canales
+                    if (reg.canales && reg.canales.length > 0) {
+                        const canalesData = reg.canales
+                            .filter(c => c.peso || c.temperatura || c.observaciones)
+                            .map(c => ({
+                                recepcion_id: data.id,
+                                numero: c.numero,
+                                peso: c.peso || null,
+                                temperatura: c.temperatura || null,
+                                observaciones: c.observaciones || ''
+                            }));
+                        
+                        if (canalesData.length > 0) {
+                            await this.client.from('canales').insert(canalesData);
+                        }
+                    }
+                    
+                    return data;
+                } catch (e) {
+                    console.error('Error sync save:', e);
+                    return null;
+                }
+            },
+            
+            // Cargar recepciones
+            async loadRecepciones() {
+                if (!this.activo) return null;
+                try {
+                    const { data, error } = await this.client
+                        .from('recepciones')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    return data.map(r => ({
+                        id: r.id,
+                        fecha: r.fecha,
+                        hora: r.hora,
+                        loteOrigen: r.lote_origen,
+                        lote: r.lote,
+                        matadero: r.matadero,
+                        transportista: r.transportista,
+                        chofer: r.chofer,
+                        matriculaCabeza: r.matricula_cabeza,
+                        matriculaRemolque: r.matricula_remolque,
+                        temperaturaCamion: r.temperatura_camion,
+                        pesoBrutoMatadero: r.peso_bruto_matadero,
+                        tarasMatadero: r.taras_matadero,
+                        pesoNetoMatadero: r.peso_neto_matadero,
+                        pesoBruto: r.peso_bruto,
+                        taras: r.taras,
+                        pesoNeto: r.peso_neto,
+                        diferenciaPeso: r.diferencia_peso,
+                        numeroCanales: r.numero_canales,
+                        pesoMedio: r.peso_medio,
+                        otrasMaterias: r.otras_materias
+                    }));
+                } catch (e) {
+                    console.error('Error sync load:', e);
+                    return null;
+                }
+            },
+            
+            // Eliminar recepción
+            async deleteRecepcion(id) {
+                if (!this.activo) return false;
+                try {
+                    const { error } = await this.client.from('recepciones').delete().eq('id', id);
+                    return !error;
+                } catch (e) {
+                    return false;
+                }
+            },
+            
+            // Guardar dato maestro
+            async saveDatoMaestro(tipo, valor) {
+                if (!this.activo) return false;
+                try {
+                    const { error } = await this.client
+                        .from('datos_maestros')
+                        .insert([{ tipo, valor }]);
+                    return !error;
+                } catch (e) {
+                    return false;
+                }
+            },
+            
+            // Cargar datos maestros
+            async loadDatosMaestros(tipo) {
+                if (!this.activo) return null;
+                try {
+                    const { data, error } = await this.client
+                        .from('datos_maestros')
+                        .select('valor')
+                        .eq('tipo', tipo)
+                        .order('valor');
+                    
+                    if (error) throw error;
+                    return data.map(d => d.valor);
+                } catch (e) {
+                    return null;
+                }
+            },
+            
+            // Eliminar dato maestro
+            async deleteDatoMaestro(tipo, valor) {
+                if (!this.activo) return false;
+                try {
+                    const { error } = await this.client
+                        .from('datos_maestros')
+                        .delete()
+                        .eq('tipo', tipo)
+                        .eq('valor', valor);
+                    return !error;
+                } catch (e) {
+                    return false;
+                }
+            }
+        };
+        
+        // Inicializar al cargar (no bloquea)
+        setTimeout(() => SYNC.init(), 1000);
     </script>
 </body>
 </html>
