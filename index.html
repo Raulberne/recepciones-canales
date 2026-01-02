@@ -1332,8 +1332,57 @@
         }
 
         // Cargar historial
-        function cargarHistorial() {
-            let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+        async function cargarHistorial() {
+            // PASO 2: Intentar cargar desde Supabase
+            let registros = [];
+            
+            if (window.supabaseReady) {
+                try {
+                    const { data, error } = await window.supabaseReady
+                        .from('recepciones')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (!error && data) {
+                        // Convertir formato Supabase a formato interno
+                        registros = data.map(r => ({
+                            id: r.id,
+                            fecha: r.fecha,
+                            hora: r.hora,
+                            loteOrigen: r.lote_origen,
+                            lote: r.lote,
+                            matadero: r.matadero,
+                            transportista: r.transportista,
+                            chofer: r.chofer,
+                            matriculaCabeza: r.matricula_cabeza,
+                            matriculaRemolque: r.matricula_remolque,
+                            temperaturaCamion: r.temperatura_camion,
+                            pesoBrutoMatadero: r.peso_bruto_matadero,
+                            tarasMatadero: r.taras_matadero,
+                            pesoNetoMatadero: r.peso_neto_matadero,
+                            pesoBruto: r.peso_bruto,
+                            taras: r.taras,
+                            pesoNeto: r.peso_neto,
+                            diferenciaPeso: r.diferencia_peso,
+                            numeroCanales: r.numero_canales,
+                            pesoMedio: r.peso_medio,
+                            otrasMaterias: r.otras_materias
+                        }));
+                        console.log('✓ Cargado desde nube:', registros.length, 'registros');
+                    }
+                } catch (e) {
+                    console.log('Error cargando desde nube:', e);
+                }
+            }
+            
+            // Fallback a localStorage si no se pudo cargar de Supabase
+            if (registros.length === 0) {
+                registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
+                if (registros.length > 0) {
+                    console.log('✓ Cargado desde localStorage:', registros.length, 'registros');
+                }
+            }
+            
             const container = document.getElementById('historialContainer');
             
             // Aplicar filtros de fecha si existen
