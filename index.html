@@ -847,6 +847,16 @@
                 <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem; font-weight: 900;">⚙️ Gestión de Datos Maestros</h2>
                 <p style="margin-bottom: 2rem; color: #666;">Administra los datos que aparecerán en los desplegables del formulario de registro.</p>
                 
+                <!-- Botón de migración -->
+                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 0.5rem 0; color: #856404; font-size: 1.1rem;">🔄 Migrar datos a la nube</h3>
+                    <p style="margin: 0 0 1rem 0; color: #856404; font-size: 0.9rem;">Si tienes datos guardados localmente (antes de la sincronización), usa este botón para subirlos a Supabase.</p>
+                    <button id="btnMigrar" class="btn btn-primary" onclick="migrarDatosLocalANube()" style="background: #ffc107; color: #000; font-weight: 700;">
+                        ⬆️ Migrar datos locales a la nube
+                    </button>
+                    <div id="progresoMigracion" style="margin-top: 1rem; display: none; color: #856404; font-weight: 600;"></div>
+                </div>
+                
                 <!-- Mataderos -->
                 <div class="form-section">
                     <h2>🏭 Mataderos</h2>
@@ -1135,6 +1145,96 @@
             await cargarDatosMaestros();
             await cargarSelectores();
             mostrarNotificacion('Dato eliminado', 'success');
+        }
+        
+        // Migrar datos locales a Supabase
+        async function migrarDatosLocalANube() {
+            if (!window.supabaseReady) {
+                mostrarNotificacion('❌ Supabase no está disponible', 'error');
+                return;
+            }
+            
+            if (!confirm('¿Migrar todos los datos locales a la nube?\n\nEsto subirá todos los mataderos, transportistas, choferes y matrículas que tengas guardados localmente.')) {
+                return;
+            }
+            
+            const btnMigrar = document.getElementById('btnMigrar');
+            const progreso = document.getElementById('progresoMigracion');
+            
+            btnMigrar.disabled = true;
+            btnMigrar.textContent = '⏳ Migrando...';
+            progreso.style.display = 'block';
+            progreso.textContent = 'Iniciando migración...';
+            
+            const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
+            let totalMigrados = 0;
+            let totalErrores = 0;
+            
+            for (const tipo of tipos) {
+                progreso.textContent = `Procesando ${tipo}...`;
+                
+                // Leer datos locales
+                const datosLocales = JSON.parse(localStorage.getItem(tipo)) || [];
+                
+                if (datosLocales.length === 0) {
+                    console.log(`✓ ${tipo}: sin datos locales`);
+                    continue;
+                }
+                
+                // Obtener datos que ya existen en Supabase
+                let datosNube = [];
+                try {
+                    const { data } = await window.supabaseReady
+                        .from('datos_maestros')
+                        .select('valor')
+                        .eq('tipo', tipo);
+                    if (data) datosNube = data.map(d => d.valor);
+                } catch (e) {
+                    console.error(`Error leyendo ${tipo} de nube:`, e);
+                }
+                
+                // Subir solo los que NO existen en Supabase
+                for (const valor of datosLocales) {
+                    if (!datosNube.includes(valor)) {
+                        try {
+                            const { error } = await window.supabaseReady
+                                .from('datos_maestros')
+                                .insert([{ tipo, valor }]);
+                            
+                            if (error) {
+                                console.error(`Error insertando ${valor}:`, error);
+                                totalErrores++;
+                            } else {
+                                console.log(`✓ Migrado: ${tipo} → ${valor}`);
+                                totalMigrados++;
+                            }
+                        } catch (e) {
+                            console.error(`Error subiendo ${valor}:`, e);
+                            totalErrores++;
+                        }
+                        
+                        // Pausa pequeña para no saturar
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
+            }
+            
+            progreso.textContent = `✓ Migración completada: ${totalMigrados} datos subidos${totalErrores > 0 ? `, ${totalErrores} errores` : ''}`;
+            btnMigrar.textContent = '✓ Migración completada';
+            btnMigrar.style.background = '#28a745';
+            
+            // Recargar datos
+            await cargarDatosMaestros();
+            await cargarSelectores();
+            
+            mostrarNotificacion(`✓ Migración completada: ${totalMigrados} datos subidos`, 'success');
+            
+            setTimeout(() => {
+                progreso.style.display = 'none';
+                btnMigrar.disabled = false;
+                btnMigrar.textContent = '⬆️ Migrar datos locales a la nube';
+                btnMigrar.style.background = '#ffc107';
+            }, 3000);
         }
         
         // Abrir gestión de datos (función auxiliar)
