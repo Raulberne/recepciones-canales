@@ -1186,7 +1186,7 @@
         }
 
         // Guardar registro
-        document.getElementById('recepcionForm').addEventListener('submit', function(e) {
+        document.getElementById('recepcionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Recopilar datos del formulario
@@ -1233,13 +1233,72 @@
                 });
             }
             
-            // Guardar en localStorage
+            // PASO 1: Intentar guardar en Supabase
+            let guardadoEnNube = false;
+            if (window.supabaseReady) {
+                try {
+                    const { data: recepcion, error: errorRec } = await window.supabaseReady
+                        .from('recepciones')
+                        .insert([{
+                            fecha: registro.fecha,
+                            hora: registro.hora,
+                            lote_origen: registro.loteOrigen,
+                            lote: registro.lote,
+                            matadero: registro.matadero,
+                            transportista: registro.transportista,
+                            chofer: registro.chofer,
+                            matricula_cabeza: registro.matriculaCabeza,
+                            matricula_remolque: registro.matriculaRemolque,
+                            temperatura_camion: registro.temperaturaCamion,
+                            peso_bruto_matadero: registro.pesoBrutoMatadero,
+                            taras_matadero: registro.tarasMatadero,
+                            peso_neto_matadero: registro.pesoNetoMatadero,
+                            peso_bruto: registro.pesoBruto,
+                            taras: registro.taras,
+                            peso_neto: registro.pesoNeto,
+                            diferencia_peso: registro.diferenciaPeso,
+                            numero_canales: registro.numeroCanales,
+                            peso_medio: registro.pesoMedio,
+                            otras_materias: registro.otrasMaterias
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (!errorRec && recepcion) {
+                        // Guardar canales
+                        const canalesData = registro.canales
+                            .filter(c => c.peso || c.temperatura || c.observaciones)
+                            .map(c => ({
+                                recepcion_id: recepcion.id,
+                                numero: c.numero,
+                                peso: c.peso,
+                                temperatura: c.temperatura,
+                                observaciones: c.observaciones
+                            }));
+                        
+                        if (canalesData.length > 0) {
+                            await window.supabaseReady.from('canales').insert(canalesData);
+                        }
+                        
+                        guardadoEnNube = true;
+                        console.log('✓ Guardado en nube');
+                    }
+                } catch (e) {
+                    console.log('Error guardando en nube:', e);
+                }
+            }
+            
+            // Siempre guardar en localStorage también (backup)
             let registros = JSON.parse(localStorage.getItem('registrosCanales')) || [];
             registros.push(registro);
             localStorage.setItem('registrosCanales', JSON.stringify(registros));
             
             // Mostrar notificación
-            mostrarNotificacion('✓ Registro guardado exitosamente', 'success');
+            if (guardadoEnNube) {
+                mostrarNotificacion('✓ Guardado y sincronizado en la nube', 'success');
+            } else {
+                mostrarNotificacion('✓ Guardado localmente', 'success');
+            }
             
             // Limpiar formulario
             limpiarFormulario();
