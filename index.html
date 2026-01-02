@@ -910,12 +910,12 @@
         // =========================================
         
         // Inicializar
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             generarFilasCanales();
-            cargarHistorial();
+            await cargarHistorial();
             actualizarEstadisticas();
-            cargarDatosMaestros();
-            cargarSelectores();
+            await cargarDatosMaestros();
+            await cargarSelectores();
             
             // Establecer fecha y hora actuales
             const ahora = new Date();
@@ -924,13 +924,33 @@
         });
         
         // Cargar datos maestros en los selectores
-        function cargarSelectores() {
+        async function cargarSelectores() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
-                let selectId = '';
+            for (const tipo of tipos) {
+                // Intentar cargar desde Supabase
+                let datos = [];
+                if (window.supabaseReady) {
+                    try {
+                        const { data, error } = await window.supabaseReady
+                            .from('datos_maestros')
+                            .select('valor')
+                            .eq('tipo', tipo)
+                            .order('valor');
+                        if (!error && data) {
+                            datos = data.map(d => d.valor);
+                        }
+                    } catch (e) {
+                        console.log(`Error cargando selector ${tipo}:`, e);
+                    }
+                }
                 
+                // Fallback a localStorage
+                if (datos.length === 0) {
+                    datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                }
+                
+                let selectId = '';
                 switch(tipo) {
                     case 'mataderos': selectId = 'matadero'; break;
                     case 'transportistas': selectId = 'transportista'; break;
@@ -940,6 +960,8 @@
                 }
                 
                 const select = document.getElementById(selectId);
+                if (!select) continue;
+                
                 const valorActual = select.value;
                 
                 // Limpiar opciones excepto la primera
@@ -957,17 +979,38 @@
                 if (valorActual) {
                     select.value = valorActual;
                 }
-            });
+            }
         }
         
         // Cargar datos maestros en listas
-        function cargarDatosMaestros() {
+        async function cargarDatosMaestros() {
             const tipos = ['mataderos', 'transportistas', 'choferes', 'matriculasCabeza', 'matriculasRemolque'];
             
-            tipos.forEach(tipo => {
-                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
-                let listaId = '';
+            for (const tipo of tipos) {
+                // Intentar cargar desde Supabase
+                let datos = [];
+                if (window.supabaseReady) {
+                    try {
+                        const { data, error } = await window.supabaseReady
+                            .from('datos_maestros')
+                            .select('valor')
+                            .eq('tipo', tipo)
+                            .order('valor');
+                        if (!error && data) {
+                            datos = data.map(d => d.valor);
+                            console.log(`✓ ${tipo} cargado desde nube:`, datos.length);
+                        }
+                    } catch (e) {
+                        console.log(`Error cargando ${tipo}:`, e);
+                    }
+                }
                 
+                // Fallback a localStorage
+                if (datos.length === 0) {
+                    datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                }
+                
+                let listaId = '';
                 switch(tipo) {
                     case 'mataderos': listaId = 'listaMataderos'; break;
                     case 'transportistas': listaId = 'listaTransportistas'; break;
@@ -977,11 +1020,13 @@
                 }
                 
                 const lista = document.getElementById(listaId);
+                if (!lista) continue;
+                
                 lista.innerHTML = '';
                 
                 if (datos.length === 0) {
                     lista.innerHTML = '<p style="color: #999; font-style: italic;">No hay datos registrados</p>';
-                    return;
+                    continue;
                 }
                 
                 datos.forEach(item => {
@@ -993,11 +1038,11 @@
                     `;
                     lista.appendChild(tag);
                 });
-            });
+            }
         }
         
         // Agregar dato maestro
-        function agregarDato(tipo, inputId) {
+        async function agregarDato(tipo, inputId) {
             const input = document.getElementById(inputId);
             const valor = input.value.trim().toUpperCase();
             
@@ -1006,33 +1051,89 @@
                 return;
             }
             
-            let datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            // Verificar si ya existe (primero en Supabase, luego localStorage)
+            let datos = [];
+            if (window.supabaseReady) {
+                try {
+                    const { data } = await window.supabaseReady
+                        .from('datos_maestros')
+                        .select('valor')
+                        .eq('tipo', tipo);
+                    if (data) datos = data.map(d => d.valor);
+                } catch (e) {
+                    console.log('Error verificando:', e);
+                }
+            }
+            
+            if (datos.length === 0) {
+                datos = JSON.parse(localStorage.getItem(tipo)) || [];
+            }
             
             if (datos.includes(valor)) {
                 mostrarNotificacion('Este dato ya existe', 'error');
                 return;
             }
             
-            datos.push(valor);
-            datos.sort();
-            localStorage.setItem(tipo, JSON.stringify(datos));
+            // Intentar guardar en Supabase
+            let guardadoEnNube = false;
+            if (window.supabaseReady) {
+                try {
+                    const { error } = await window.supabaseReady
+                        .from('datos_maestros')
+                        .insert([{ tipo, valor }]);
+                    if (!error) {
+                        guardadoEnNube = true;
+                        console.log('✓ Dato maestro guardado en nube');
+                    }
+                } catch (e) {
+                    console.log('Error guardando:', e);
+                }
+            }
+            
+            // Siempre guardar en localStorage también (backup)
+            if (!guardadoEnNube) {
+                datos.push(valor);
+                datos.sort();
+                localStorage.setItem(tipo, JSON.stringify(datos));
+            }
             
             input.value = '';
-            cargarDatosMaestros();
-            cargarSelectores();
+            await cargarDatosMaestros();
+            await cargarSelectores();
             mostrarNotificacion('Dato agregado correctamente', 'success');
         }
         
         // Eliminar dato maestro
-        function eliminarDato(tipo, valor) {
+        async function eliminarDato(tipo, valor) {
             if (!confirm(`¿Eliminar "${valor}"?`)) return;
             
-            let datos = JSON.parse(localStorage.getItem(tipo)) || [];
-            datos = datos.filter(d => d !== valor);
-            localStorage.setItem(tipo, JSON.stringify(datos));
+            // Intentar eliminar de Supabase
+            let eliminadoDeNube = false;
+            if (window.supabaseReady) {
+                try {
+                    const { error } = await window.supabaseReady
+                        .from('datos_maestros')
+                        .delete()
+                        .eq('tipo', tipo)
+                        .eq('valor', valor);
+                    if (!error) {
+                        eliminadoDeNube = true;
+                        console.log('✓ Dato maestro eliminado de nube');
+                    }
+                } catch (e) {
+                    console.log('Error eliminando:', e);
+                }
+            }
             
-            cargarDatosMaestros();
-            cargarSelectores();
+            // Eliminar de localStorage también
+            if (!eliminadoDeNube) {
+                let datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                datos = datos.filter(d => d !== valor);
+                localStorage.setItem(tipo, JSON.stringify(datos));
+            }
+            
+            await cargarDatosMaestros();
+            await cargarSelectores();
             mostrarNotificacion('Dato eliminado', 'success');
         }
         
